@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "trading_ui_style"
+name = "trading_ui_style_rust"
 version = "0.1.0"
