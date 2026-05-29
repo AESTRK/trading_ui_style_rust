@@ -48,7 +48,7 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 Dépendance Git dans `Cargo.toml` :
 
 ```toml
-trading_ui_style_rust = { git = "https://github.com/AESTRK/trading_ui_style_rust.git", branch = "master" }
+trading_ui_style_rust = { git = "https://github.com/AESTRK/trading_ui_style_rust.git", branch = "main" }
 ```
 
 ## Build et tests
