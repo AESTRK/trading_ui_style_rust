@@ -1,3 +1,7 @@
+pub mod launcher;
+
+pub use launcher::hide_dock_requested;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rgb {
     pub r: u8,

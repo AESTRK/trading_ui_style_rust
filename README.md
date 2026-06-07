@@ -29,7 +29,7 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 | Composant | Détail |
 |-----------|--------|
 | Langage | Rust 2024 |
-| Dépendances runtime | Aucune |
+| Dépendances runtime | Aucune (macro hide-dock compile-time via `winit` de l'app) |
 | Type | Bibliothèque (`lib` uniquement, pas de binaire) |
 
 ## API principale
@@ -42,6 +42,21 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 | `TEXT_SIZES` | Tailles de police standardisées |
 | `format_pct`, `format_eur_compact`, `format_volume_compact` | Formatters |
 | `pct_rgb` | Couleur conditionnelle selon variation |
+| `apply_launcher_hide_dock` | Masque l'icône Dock si `ALPHA_LAGOON_HIDE_DOCK=1` (launcher Xcode) |
+| `hide_dock_requested` | Lit la variable d'environnement du launcher |
+
+## Launcher / Dock macOS
+
+Dépendance requise dans l'app consommatrice : `winit = { version = "0.30", default-features = true }` (souvent déjà présent via eframe).
+
+Avant `eframe::run_native`, chaque app GUI Rust doit appeler :
+
+```rust
+let mut native_options = eframe::NativeOptions { /* … */ };
+trading_ui_style_rust::apply_launcher_hide_dock!(native_options);
+```
+
+Équivalent de `macos_dock.py` côté Python/Tk. Le launcher définit `ALPHA_LAGOON_HIDE_DOCK=1` pour toute la stack.
 
 ## Installation (consommateur)
 
