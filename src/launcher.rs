@@ -1,7 +1,7 @@
 //! Intégration launcher AlphaLagoon (masquage Dock macOS).
 //!
 //! Le launcher Xcode définit `ALPHA_LAGOON_HIDE_DOCK=1` pour toute la stack.
-//! Équivalent Rust de `~/CommonProjects/config/xcode/macos_dock.py` (Python/Tk).
+//! Équivalent Rust de `~/CommonProjects/config/launcher/macos_dock.py` (Python/Tk).
 
 /// `true` si le launcher a demandé de masquer l'icône Dock.
 pub fn hide_dock_requested() -> bool {
