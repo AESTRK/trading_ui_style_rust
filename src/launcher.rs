@@ -10,30 +10,43 @@ pub fn hide_dock_requested() -> bool {
         .unwrap_or(false)
 }
 
-/// Masque l'icône Dock via `winit::ActivationPolicy::Accessory` sur `eframe::NativeOptions`.
-///
-/// Macro (pas de dépendance `eframe` dans ce crate — compatible 0.31 / 0.34).
-///
-/// ```ignore
-/// let mut native_options = eframe::NativeOptions { /* … */ };
-/// trading_ui_style_rust::apply_launcher_hide_dock!(native_options);
-/// eframe::run_native(/* … */);
-/// ```
+/// Applique la politique Dock launcher sur des `eframe::NativeOptions`.
+pub fn prepare_native_options(mut options: eframe::NativeOptions) -> eframe::NativeOptions {
+    if !hide_dock_requested() {
+        return options;
+    }
+
+    let previous = options.event_loop_builder.take();
+    options.event_loop_builder = Some(Box::new(move |builder| {
+        if let Some(prev) = previous {
+            prev(builder);
+        }
+        #[cfg(target_os = "macos")]
+        {
+            use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
+            builder.with_activation_policy(ActivationPolicy::Accessory);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = builder;
+        }
+    }));
+    options
+}
+
+/// Point d'entrée GUI standard stack : masque le Dock si demandé par le launcher.
+pub fn run_native(
+    app_name: &str,
+    options: eframe::NativeOptions,
+    creator: eframe::AppCreator<'_>,
+) -> eframe::Result {
+    eframe::run_native(app_name, prepare_native_options(options), creator)
+}
+
+/// Compatibilité — préférer [`prepare_native_options`] ou [`run_native`].
 #[macro_export]
 macro_rules! apply_launcher_hide_dock {
     ($native_options:expr) => {
-        if $crate::hide_dock_requested() {
-            $native_options.event_loop_builder = Some(::std::boxed::Box::new(|builder| {
-                #[cfg(target_os = "macos")]
-                {
-                    use ::winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
-                    builder.with_activation_policy(ActivationPolicy::Accessory);
-                }
-                #[cfg(not(target_os = "macos"))]
-                {
-                    let _ = builder;
-                }
-            }));
-        }
+        $native_options = $crate::prepare_native_options($native_options);
     };
 }

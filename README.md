@@ -29,7 +29,7 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 | Composant | Détail |
 |-----------|--------|
 | Langage | Rust 2024 |
-| Dépendances runtime | Aucune (macro hide-dock compile-time via `winit` de l'app) |
+| Dépendances runtime | `egui` 0.31 (module `banner` uniquement) |
 | Type | Bibliothèque (`lib` uniquement, pas de binaire) |
 
 ## API principale
@@ -42,21 +42,37 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 | `TEXT_SIZES` | Tailles de police standardisées |
 | `format_pct`, `format_eur_compact`, `format_volume_compact` | Formatters |
 | `pct_rgb` | Couleur conditionnelle selon variation |
-| `apply_launcher_hide_dock` | Masque l'icône Dock si `ALPHA_LAGOON_HIDE_DOCK=1` (launcher Xcode) |
 | `hide_dock_requested` | Lit la variable d'environnement du launcher |
+| `prepare_native_options` | Applique le masquage Dock sur `eframe::NativeOptions` |
+| `run_native` | `eframe::run_native` + masquage Dock automatique (point d'entrée GUI standard) |
+| `apply_launcher_hide_dock!` | Compatibilité — préférer `run_native` |
+| `banner::draw_feed_banner` | Bandeau réseau 2 lignes (titre, métriques, stats WS, bouton) |
+| `banner::draw_secondary_banner` | Bandeau secondaire (carnets, API absente, connectivité) |
+| `banner::WsDowntimeStats` | Dernière coupure / cumul / déconnexions |
 
 ## Launcher / Dock macOS
 
-Dépendance requise dans l'app consommatrice : `winit = { version = "0.30", default-features = true }` (souvent déjà présent via eframe).
+Le launcher Xcode définit `ALPHA_LAGOON_HIDE_DOCK=1` pour toute la stack (équivalent de `macos_dock.py` côté Python/Tk).
 
-Avant `eframe::run_native`, chaque app GUI Rust doit appeler :
+Chaque app GUI Rust doit lancer sa fenêtre via `trading_ui_style_rust::run_native` — le masquage Dock est automatique :
 
 ```rust
-let mut native_options = eframe::NativeOptions { /* … */ };
-trading_ui_style_rust::apply_launcher_hide_dock!(native_options);
+trading_ui_style_rust::run_native(
+    APP_TITLE,
+    eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([width, height])
+            .with_title(APP_TITLE),
+        ..Default::default()
+    },
+    Box::new(|cc| {
+        egui_theme::apply_system_visuals(&cc.egui_ctx);
+        Ok(Box::new(MyApp::new()))
+    }),
+)?;
 ```
 
-Équivalent de `macos_dock.py` côté Python/Tk. Le launcher définit `ALPHA_LAGOON_HIDE_DOCK=1` pour toute la stack.
+Aucune dépendance `winit` supplémentaire dans l'app : elle est portée par `trading_ui_style_rust` (feature `launcher`, activée par défaut).
 
 ## Installation (consommateur)
 

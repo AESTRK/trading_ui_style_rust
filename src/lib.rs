@@ -1,6 +1,8 @@
+pub mod banner;
+pub mod egui_theme;
 pub mod launcher;
 
-pub use launcher::hide_dock_requested;
+pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rgb {
