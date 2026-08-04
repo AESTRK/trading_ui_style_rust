@@ -1,7 +1,13 @@
 pub mod banner;
+pub mod config_window;
 pub mod connectivity_banner;
+pub mod data_table;
 pub mod egui_theme;
 pub mod launcher;
+
+pub mod widgets;
+
+pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button};
 
 pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
 

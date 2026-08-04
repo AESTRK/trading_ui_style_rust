@@ -33,10 +33,13 @@ pub fn show_top_alert_panel(ctx: &egui::Context, text: &str) {
             .fill(connectivity_alert_bg(ctx))
             .inner_margin(egui::Margin::symmetric(14, 10))
             .show(ui, |ui| {
-                ui.label(
-                    RichText::new(text)
-                        .color(egui::Color32::WHITE)
-                        .font(FontId::proportional(TEXT_SIZES.toolbar)),
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(text)
+                            .color(egui::Color32::WHITE)
+                            .font(FontId::proportional(TEXT_SIZES.toolbar)),
+                    )
+                    .wrap(),
                 );
             });
     });

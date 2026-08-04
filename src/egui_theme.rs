@@ -45,14 +45,20 @@ pub fn visuals_from_palette(mode: ThemeMode, trading: TradingPalette) -> egui::V
     visuals.selection.bg_fill = color(trading.selection_bg);
     visuals.selection.stroke.color = color(trading.selection_stroke);
 
-    let no_stroke = egui::Stroke::NONE;
-    visuals.window_stroke = no_stroke;
-    visuals.widgets.noninteractive.bg_stroke = no_stroke;
-    visuals.widgets.noninteractive.fg_stroke = no_stroke;
-    visuals.widgets.inactive.bg_stroke = no_stroke;
-    visuals.widgets.hovered.bg_stroke = no_stroke;
-    visuals.widgets.active.bg_stroke = no_stroke;
-    visuals.widgets.open.bg_stroke = no_stroke;
+    let no_bg_stroke = egui::Stroke::NONE;
+    let widget_fg = egui::Stroke::new(1.0_f32, color(trading.text));
+    visuals.window_stroke = no_bg_stroke;
+    visuals.widgets.noninteractive.bg_stroke = no_bg_stroke;
+    visuals.widgets.inactive.bg_stroke = no_bg_stroke;
+    visuals.widgets.hovered.bg_stroke = no_bg_stroke;
+    visuals.widgets.active.bg_stroke = no_bg_stroke;
+    visuals.widgets.open.bg_stroke = no_bg_stroke;
+    // fg_stroke requis pour coches, flèches ComboBox, etc. — ne pas mettre à NONE.
+    visuals.widgets.noninteractive.fg_stroke = widget_fg;
+    visuals.widgets.inactive.fg_stroke = widget_fg;
+    visuals.widgets.hovered.fg_stroke = widget_fg;
+    visuals.widgets.active.fg_stroke = widget_fg;
+    visuals.widgets.open.fg_stroke = widget_fg;
     visuals
 }
 
