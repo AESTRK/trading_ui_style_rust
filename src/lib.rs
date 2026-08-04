@@ -1,4 +1,5 @@
 pub mod banner;
+pub mod connectivity_banner;
 pub mod egui_theme;
 pub mod launcher;
 
