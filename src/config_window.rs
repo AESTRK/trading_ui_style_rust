@@ -10,6 +10,40 @@ pub const MENU_CONFIG_LABEL: &str = "Menu config";
 /// Taille par défaut des fenêtres config.
 pub const CONFIG_WINDOW_SIZE: egui::Vec2 = egui::vec2(460.0, 520.0);
 
+const MIN_VIEWPORT_SIZE: egui::Vec2 = egui::vec2(360.0, 280.0);
+
+fn initial_size_key(viewport_id: egui::ViewportId) -> egui::Id {
+    egui::Id::new((viewport_id, "initial_size_set"))
+}
+
+/// Viewport redimensionnable : `inner_size` uniquement à la première ouverture.
+/// Sans ça, egui force la taille par défaut à chaque frame et le resize devient saccadé.
+pub fn resizable_viewport_builder(
+    ctx: &egui::Context,
+    viewport_id: egui::ViewportId,
+    title: impl Into<String>,
+    default_size: egui::Vec2,
+) -> egui::ViewportBuilder {
+    let sized_key = initial_size_key(viewport_id);
+    let mut builder = egui::ViewportBuilder::default()
+        .with_title(title.into())
+        .with_resizable(true)
+        .with_min_inner_size(MIN_VIEWPORT_SIZE);
+    if !ctx.data(|d| d.get_temp::<bool>(sized_key).unwrap_or(false)) {
+        builder = builder.with_inner_size(default_size);
+        ctx.data_mut(|d| d.insert_temp(sized_key, true));
+    }
+    builder
+}
+
+fn clear_initial_size_hint(ctx: &egui::Context, viewport_id: egui::ViewportId) {
+    ctx.data_mut(|d| d.remove::<bool>(initial_size_key(viewport_id)));
+}
+
+pub fn clear_viewport_size_hint(ctx: &egui::Context, viewport_id: egui::ViewportId) {
+    clear_initial_size_hint(ctx, viewport_id);
+}
+
 /// Titre barre OS : « {app} — Configuration ».
 pub fn config_viewport_title(app_title: &str) -> String {
     format!("{app_title} — Configuration")
@@ -61,22 +95,21 @@ pub fn show_config_viewport_with_id(
     mut add_contents: impl FnMut(&mut egui::Ui),
 ) {
     if !*open {
+        clear_initial_size_hint(ctx, viewport_id);
         return;
     }
     let title = config_viewport_title(app_title);
     let mut still_open = *open;
     ctx.show_viewport_immediate(
         viewport_id,
-        egui::ViewportBuilder::default()
-            .with_title(title)
-            .with_inner_size(CONFIG_WINDOW_SIZE)
-            .with_resizable(true),
+        resizable_viewport_builder(ctx, viewport_id, title, CONFIG_WINDOW_SIZE),
         |ctx, _class| {
             egui_theme::apply_system_visuals(ctx);
-            egui::CentralPanel::default().show(ctx, |ui| {
+            egui_theme::show_central_panel(ctx, |ui| {
                 ui.heading("Menu config / diagnostic");
                 ui.separator();
                 egui::ScrollArea::vertical()
+                    .id_salt(egui::Id::new((viewport_id, "config_scroll")))
                     .auto_shrink([false, false])
                     .show(ui, |ui| add_contents(ui));
             });
@@ -85,6 +118,9 @@ pub fn show_config_viewport_with_id(
             }
         },
     );
+    if !still_open {
+        clear_initial_size_hint(ctx, viewport_id);
+    }
     *open = still_open;
 }
 
@@ -93,10 +129,15 @@ pub fn readonly_grid(ui: &mut egui::Ui, id: &str, rows: &[(&str, &str)]) {
     egui::Grid::new(id)
         .num_columns(2)
         .spacing(egui::vec2(12.0, 4.0))
+        .striped(true)
         .show(ui, |ui| {
             for (label, value) in rows {
                 ui.label(egui::RichText::new(*label).weak());
-                ui.label(*value);
+                ui.add(
+                    egui::Label::new(egui::RichText::new(*value).monospace())
+                        .wrap()
+                        .selectable(true),
+                );
                 ui.end_row();
             }
         });
@@ -105,6 +146,16 @@ pub fn readonly_grid(ui: &mut egui::Ui, id: &str, rows: &[(&str, &str)]) {
 /// Pied de page chemins config (référence + runtime).
 pub fn config_paths_footer(ui: &mut egui::Ui, reference: &str, runtime: &str) {
     ui.separator();
-    ui.label(format!("Référence: {reference}"));
-    ui.label(format!("Runtime: {runtime}"));
+    ui.label("Référence:");
+    ui.add(
+        egui::Label::new(egui::RichText::new(reference).monospace().small())
+            .wrap()
+            .selectable(true),
+    );
+    ui.label("Runtime:");
+    ui.add(
+        egui::Label::new(egui::RichText::new(runtime).monospace().small())
+            .wrap()
+            .selectable(true),
+    );
 }

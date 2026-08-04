@@ -1,19 +1,13 @@
-//! Tableau aligné avec réordonnancement des colonnes par drag-and-drop.
+//! Tableau aligné avec tri par clic sur les en-têtes (flèche asc/desc).
 //!
 //! Utilisable par toutes les apps GUI AlphaLagoon (statics, publishers, etc.).
 
-use egui::{Color32, CursorIcon, DragAndDrop, FontId, Id, Rect, Response, ScrollArea, Sense, Ui, Vec2};
-
-/// Payload drag-and-drop pour réordonner une colonne.
-#[derive(Clone, Debug)]
-pub struct ColumnDragPayload {
-    pub key: String,
-}
+use egui::{Color32, FontId, Id, Rect, Response, ScrollArea, Sense, Ui, Vec2};
 
 /// Événements émis par une ligne d'en-tête.
 #[derive(Clone, Debug, Default)]
 pub struct TableHeaderEvent {
-    pub column_moved: Option<(String, String)>,
+    pub sort_key: Option<String>,
 }
 
 pub const DEFAULT_ROW_HEIGHT: f32 = 17.0;
@@ -55,25 +49,6 @@ pub fn cell_rect(
     }
     let w = column_width(&columns[col_index]);
     Rect::from_min_size(egui::pos2(x, row_rect.min.y), Vec2::new(w, row_rect.height()))
-}
-
-/// Déplace `from_key` à la position de `to_key` dans `columns`.
-pub fn reorder_column(columns: &mut Vec<String>, from_key: &str, to_key: &str) -> bool {
-    if from_key == to_key {
-        return false;
-    }
-    let Some(from) = columns.iter().position(|k| k == from_key) else {
-        return false;
-    };
-    let Some(mut to) = columns.iter().position(|k| k == to_key) else {
-        return false;
-    };
-    let item = columns.remove(from);
-    if to > from {
-        to -= 1;
-    }
-    columns.insert(to, item);
-    true
 }
 
 /// Désactive l'espacement vertical entre les lignes du tableau.
@@ -153,13 +128,14 @@ pub fn show_sticky_header_table<R>(
     (header_event, body_out.expect("sticky table body"))
 }
 
-/// En-tête : glisser une colonne pour la réordonner (molette / trackpad pour défiler).
+/// En-tête triable : clic sur une colonne pour trier ; reclic inverse le sens (flèche).
 pub fn draw_header_row(
     ui: &mut Ui,
     table_id: Id,
     columns: &[String],
     column_width: impl Fn(&str) -> f32 + Copy,
     column_label: impl Fn(&str) -> String + Copy,
+    column_hint: impl Fn(&str) -> String + Copy,
     sort_column: &str,
     sort_reverse: bool,
     row_height: f32,
@@ -175,7 +151,7 @@ pub fn draw_header_row(
 
     for (col_index, key) in columns.iter().enumerate() {
         let cell = cell_rect(rect, col_index, columns, spacing, column_width);
-        let cell_id = table_id.with(("col", key.as_str()));
+        let sort_id = table_id.with(("col_sort", key.as_str()));
         let label = column_label(key);
         let sorted = sort_column == key;
         let text_color = ui.visuals().strong_text_color();
@@ -193,23 +169,11 @@ pub fn draw_header_row(
             inner.max,
         );
 
-        let response = ui.interact(cell, cell_id, Sense::hover() | Sense::drag());
-        if let Some(payload) = response.dnd_release_payload::<ColumnDragPayload>() {
-            if payload.key != *key {
-                event.column_moved = Some((payload.key.clone(), key.clone()));
-            }
-        }
-        if response.drag_started() {
-            DragAndDrop::set_payload(
-                ui.ctx(),
-                ColumnDragPayload {
-                    key: key.clone(),
-                },
-            );
-        } else if response.hovered() && ui.ctx().is_being_dragged(cell_id) {
-            ui.ctx().set_cursor_icon(CursorIcon::Grabbing);
-        } else if response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::Grab);
+        let sort_response = ui
+            .interact(cell, sort_id, Sense::click())
+            .on_hover_text(column_hint(key));
+        if sort_response.clicked() {
+            event.sort_key = Some(key.clone());
         }
 
         draw_header_cell_text(ui, label_rect, &label, header_font.clone(), text_color);
