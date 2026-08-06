@@ -10,6 +10,9 @@ pub const MENU_CONFIG_LABEL: &str = "Menu config";
 /// Taille par défaut des fenêtres config.
 pub const CONFIG_WINDOW_SIZE: egui::Vec2 = egui::vec2(460.0, 520.0);
 
+/// Fenêtre config plus haute (sélection de paires, listes longues).
+pub const CONFIG_WINDOW_SIZE_TALL: egui::Vec2 = egui::vec2(520.0, 720.0);
+
 const MIN_VIEWPORT_SIZE: egui::Vec2 = egui::vec2(360.0, 280.0);
 
 fn initial_size_key(viewport_id: egui::ViewportId) -> egui::Id {
@@ -77,11 +80,24 @@ pub fn show_config_viewport(
     open: &mut bool,
     add_contents: impl FnMut(&mut egui::Ui),
 ) {
-    show_config_viewport_with_id(
+    show_config_viewport_sized(ctx, app_id, app_title, open, CONFIG_WINDOW_SIZE, add_contents);
+}
+
+/// Variante avec taille initiale personnalisée.
+pub fn show_config_viewport_sized(
+    ctx: &egui::Context,
+    app_id: &str,
+    app_title: &str,
+    open: &mut bool,
+    default_size: egui::Vec2,
+    add_contents: impl FnMut(&mut egui::Ui),
+) {
+    show_config_viewport_with_id_sized(
         ctx,
         config_viewport_id(app_id),
         app_title,
         open,
+        default_size,
         add_contents,
     );
 }
@@ -92,6 +108,24 @@ pub fn show_config_viewport_with_id(
     viewport_id: egui::ViewportId,
     app_title: &str,
     open: &mut bool,
+    add_contents: impl FnMut(&mut egui::Ui),
+) {
+    show_config_viewport_with_id_sized(
+        ctx,
+        viewport_id,
+        app_title,
+        open,
+        CONFIG_WINDOW_SIZE,
+        add_contents,
+    );
+}
+
+pub fn show_config_viewport_with_id_sized(
+    ctx: &egui::Context,
+    viewport_id: egui::ViewportId,
+    app_title: &str,
+    open: &mut bool,
+    default_size: egui::Vec2,
     mut add_contents: impl FnMut(&mut egui::Ui),
 ) {
     if !*open {
@@ -102,7 +136,7 @@ pub fn show_config_viewport_with_id(
     let mut still_open = *open;
     ctx.show_viewport_immediate(
         viewport_id,
-        resizable_viewport_builder(ctx, viewport_id, title, CONFIG_WINDOW_SIZE),
+        resizable_viewport_builder(ctx, viewport_id, title, default_size),
         |ctx, _class| {
             egui_theme::apply_system_visuals(ctx);
             egui_theme::show_central_panel(ctx, |ui| {
