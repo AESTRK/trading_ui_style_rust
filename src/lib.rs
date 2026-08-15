@@ -4,8 +4,11 @@ pub mod connectivity_banner;
 pub mod data_table;
 pub mod egui_theme;
 pub mod launcher;
+pub mod toolbar;
 
 pub mod widgets;
+
+pub use toolbar::show_app_toolbar;
 
 pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button};
 
