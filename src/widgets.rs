@@ -84,6 +84,22 @@ pub fn draw_arrow_right(ui: &Ui, area: Rect, fill: Color32) {
         .add(Shape::convex_polygon(points, fill, Stroke::NONE));
 }
 
+/// Point plein (état en cours / avertissement).
+pub fn draw_filled_dot(ui: &Ui, rect: Rect, fill: Color32) {
+    let radius = rect.width().min(rect.height()) * 0.32;
+    ui.painter().circle_filled(rect.center(), radius, fill);
+}
+
+/// Anneau discret (en attente).
+pub fn draw_pending_ring(ui: &Ui, rect: Rect, stroke_color: Color32) {
+    let radius = rect.width().min(rect.height()) * 0.32;
+    ui.painter().circle_stroke(
+        rect.center(),
+        radius,
+        Stroke::new(1.4, stroke_color),
+    );
+}
+
 fn paint_checkbox(ui: &Ui, rect: Rect, checked: bool, enabled: bool) {
     let box_rect = rect.shrink(3.0);
     let stroke_color = if enabled {
