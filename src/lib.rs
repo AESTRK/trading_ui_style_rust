@@ -3,6 +3,7 @@ pub mod config_window;
 pub mod connectivity_banner;
 pub mod data_table;
 pub mod egui_theme;
+pub mod issues;
 pub mod launcher;
 pub mod toolbar;
 
@@ -13,6 +14,16 @@ pub use toolbar::show_app_toolbar;
 pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button};
 
 pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
+
+pub use banner::{draw_stacked_issue_banners, FeedBanner};
+pub use issues::{
+    append_classified_fragment, classify_issue_severity, collect_stack_issues, push_unique_line,
+    split_banner_fragments, IssueJournal, IssueSeverity, StackIssueBoard,
+};
+pub use connectivity_banner::{
+    show_top_alert_panel, show_top_classified_panel, show_top_flat_error_panel,
+    show_top_issue_panel,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rgb {

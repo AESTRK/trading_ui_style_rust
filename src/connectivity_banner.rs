@@ -1,5 +1,7 @@
-//! Bandeau connectivité clignotant (hub ZMQ) — panneau top egui partagé.
+//! Bandeaux connectivité / issues empilés — panneau top egui partagé.
 
+use crate::banner::draw_stacked_issue_banners;
+use crate::issues::StackIssueBoard;
 use crate::{Rgb, TEXT_SIZES};
 use egui::{self, FontId, RichText};
 
@@ -23,8 +25,35 @@ fn connectivity_alert_bg(ctx: &egui::Context) -> egui::Color32 {
     }
 }
 
+/// Bandeaux erreur + avertissement empilés en haut de fenêtre.
+pub fn show_top_issue_panel(
+    ctx: &egui::Context,
+    error_title: &str,
+    errors: &[String],
+    warning_title: &str,
+    warnings: &[String],
+) {
+    if errors.is_empty() && warnings.is_empty() {
+        return;
+    }
+    egui::TopBottomPanel::top("stack_issue_banner").show(ctx, |ui| {
+        draw_stacked_issue_banners(ui, ctx, error_title, errors, warning_title, warnings);
+    });
+}
+
+/// Bandeau classifié avec titre d'app explicite.
+pub fn show_top_classified_panel(ctx: &egui::Context, error_title: &str, text: &str) {
+    StackIssueBoard::from_combined_text(text).show_top(ctx, error_title, "AVERTISSEMENT");
+}
+
 /// Affiche un bandeau rouge clignotant en haut de la fenêtre si `text` est non vide.
+/// Découpe ` · ` et classifie erreur / avertissement (harmonisé stack AlphaLagoon).
 pub fn show_top_alert_panel(ctx: &egui::Context, text: &str) {
+    show_top_classified_panel(ctx, "ERREUR", text);
+}
+
+/// Variante legacy : texte plat sans classification (tout en erreur).
+pub fn show_top_flat_error_panel(ctx: &egui::Context, text: &str) {
     if text.trim().is_empty() {
         return;
     }

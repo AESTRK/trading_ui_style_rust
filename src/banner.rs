@@ -167,6 +167,43 @@ pub fn draw_feed_banner(
     clicked
 }
 
+/// Bandeaux empilés erreur (rouge clignotant) + avertissement (ambre).
+pub fn draw_stacked_issue_banners(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    error_title: &str,
+    errors: &[String],
+    warning_title: &str,
+    warnings: &[String],
+) {
+    if !errors.is_empty() {
+        draw_feed_banner(
+            ui,
+            ctx,
+            &FeedBanner {
+                bg: BANNER_NETWORK_ALERT,
+                title: error_title.to_string(),
+                detail: errors.join(" · "),
+            },
+            &[],
+            None,
+            None,
+            true,
+        );
+    }
+    if !warnings.is_empty() {
+        draw_secondary_banner(
+            ui,
+            &FeedBanner {
+                bg: BANNER_CARNETS_WARN,
+                title: warning_title.to_string(),
+                detail: warnings.join(" · "),
+            },
+            None,
+        );
+    }
+}
+
 /// Bandeau secondaire (ex. carnets silencieux, API absente) sous le bandeau réseau.
 pub fn draw_secondary_banner(ui: &mut egui::Ui, banner: &FeedBanner, subline: Option<&str>) {
     ui.add_space(2.0);
