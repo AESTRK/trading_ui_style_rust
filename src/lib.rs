@@ -1,6 +1,6 @@
+pub mod app_issues;
 pub mod banner;
 pub mod config_window;
-pub mod connectivity_banner;
 pub mod data_table;
 pub mod egui_theme;
 pub mod issues;
@@ -11,18 +11,19 @@ pub mod widgets;
 
 pub use toolbar::show_app_toolbar;
 
-pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button};
+pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button, side_toggle_button, SideAccent};
 
 pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
 
-pub use banner::{draw_stacked_issue_banners, FeedBanner};
-pub use issues::{
-    append_classified_fragment, classify_issue_severity, collect_stack_issues, push_unique_line,
-    split_banner_fragments, IssueJournal, IssueSeverity, StackIssueBoard,
+pub use banner::FeedBanner;
+pub use app_issues::{
+    build_issue_board, connectivity_issue_board, issue_error_title, operational_issue_board,
+    show_app_issues, show_classified_connectivity_banner, AppIssueReporter, DEFAULT_ISSUE_TTL,
+    DEFAULT_MAX_BANNER_ISSUES, DEFAULT_MAX_ISSUE_RECORDS, DEFAULT_WARNING_BANNER_TITLE,
 };
-pub use connectivity_banner::{
-    show_top_alert_panel, show_top_classified_panel, show_top_flat_error_panel,
-    show_top_issue_panel,
+
+pub use issues::{
+    append_journal_to_board, classify_issue_severity, IssueJournal, IssueSeverity, StackIssueBoard,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

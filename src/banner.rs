@@ -5,7 +5,7 @@ use egui::{self, RichText};
 
 pub const BANNER_NETWORK_OK: Rgb = Rgb::new(23, 92, 211);
 pub const BANNER_NETWORK_ALERT: Rgb = Rgb::new(217, 45, 32);
-pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(181, 110, 0);
+pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 
@@ -44,12 +44,22 @@ pub struct BannerButtonStyle {
 }
 
 pub fn alert_bg(ctx: &egui::Context, base: Rgb) -> egui::Color32 {
-    let red = rgb_color(base);
+    let base_c = rgb_color(base);
     let t = ctx.input(|i| i.time);
     if (t / BLINK_PERIOD_SEC) as i64 % 2 == 0 {
-        red
+        base_c
     } else {
-        red.gamma_multiply(0.38)
+        base_c.gamma_multiply(0.38)
+    }
+}
+
+pub fn warning_bg(ctx: &egui::Context, base: Rgb) -> egui::Color32 {
+    let base_c = rgb_color(base);
+    let t = ctx.input(|i| i.time);
+    if (t / BLINK_PERIOD_SEC) as i64 % 2 == 0 {
+        base_c
+    } else {
+        base_c.gamma_multiply(0.55)
     }
 }
 
@@ -192,15 +202,29 @@ pub fn draw_stacked_issue_banners(
         );
     }
     if !warnings.is_empty() {
-        draw_secondary_banner(
-            ui,
-            &FeedBanner {
-                bg: BANNER_CARNETS_WARN,
-                title: warning_title.to_string(),
-                detail: warnings.join(" · "),
-            },
-            None,
-        );
+        let fill = warning_bg(ctx, BANNER_CARNETS_WARN);
+        egui::Frame::new()
+            .fill(fill)
+            .inner_margin(egui::Margin::symmetric(10, 5))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!("■ {}", warning_title))
+                            .color(BANNER_TEXT)
+                            .size(TEXT_SIZES.toolbar)
+                            .strong(),
+                    );
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(warnings.join(" · "))
+                                .color(BANNER_TEXT.gamma_multiply(0.92))
+                                .size(TEXT_SIZES.status),
+                        )
+                        .wrap(),
+                    );
+                });
+            });
     }
 }
 

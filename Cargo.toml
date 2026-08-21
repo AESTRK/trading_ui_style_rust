@@ -9,5 +9,6 @@ launcher = ["dep:eframe", "dep:winit"]
 
 [dependencies]
 egui = "0.31"
+tracing = "0.1"
 eframe = { version = "0.31", optional = true, default-features = true }
 winit = { version = "0.30", optional = true, default-features = true }

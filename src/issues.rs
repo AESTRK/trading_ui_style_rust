@@ -3,6 +3,30 @@
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+/// Panneau top egui (id fixe ou viewport secondaire).
+pub fn show_issue_panel(
+    ctx: &egui::Context,
+    panel_id: egui::Id,
+    error_title: &str,
+    errors: &[String],
+    warning_title: &str,
+    warnings: &[String],
+) {
+    if errors.is_empty() && warnings.is_empty() {
+        return;
+    }
+    egui::TopBottomPanel::top(panel_id).show(ctx, |ui| {
+        crate::banner::draw_stacked_issue_banners(
+            ui,
+            ctx,
+            error_title,
+            errors,
+            warning_title,
+            warnings,
+        );
+    });
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IssueSeverity {
     Error,
@@ -161,37 +185,44 @@ impl StackIssueBoard {
         &self.warnings
     }
 
-    pub fn draw_inline(
+    pub fn from_journal_and_text(
+        combined_text: &str,
+        journal: &IssueJournal,
+        max_per_severity: usize,
+    ) -> Self {
+        let mut board = Self::from_combined_text(combined_text);
+        append_journal_to_board(journal, &mut board, max_per_severity);
+        board
+    }
+
+    pub fn merge_journal(&mut self, journal: &IssueJournal, max_per_severity: usize) {
+        append_journal_to_board(journal, self, max_per_severity);
+    }
+
+    pub fn show_top(&self, ctx: &egui::Context, error_title: &str, warning_title: &str) {
+        self.show_in_panel(ctx, egui::Id::new("stack_issue_banner"), error_title, warning_title);
+    }
+
+    /// Bandeau issues pour fenêtres egui secondaires (viewport dupliqué, etc.).
+    pub fn show_in_panel(
         &self,
-        ui: &mut egui::Ui,
         ctx: &egui::Context,
+        panel_id: impl Into<egui::Id>,
         error_title: &str,
         warning_title: &str,
     ) {
         if self.is_empty() {
             return;
         }
-        crate::banner::draw_stacked_issue_banners(
-            ui,
+        show_issue_panel(
             ctx,
+            panel_id.into(),
             error_title,
             &self.errors,
             warning_title,
             &self.warnings,
         );
-    }
-
-    pub fn show_top(&self, ctx: &egui::Context, error_title: &str, warning_title: &str) {
-        if self.is_empty() {
-            return;
-        }
-        crate::connectivity_banner::show_top_issue_panel(
-            ctx,
-            error_title,
-            &self.errors,
-            warning_title,
-            &self.warnings,
-        );
+        ctx.request_repaint_after(Duration::from_millis(33));
     }
 }
 
@@ -203,6 +234,14 @@ pub fn classify_issue_severity(text: &str) -> IssueSeverity {
         "WS SANS DONNÉES",
         "WS SANS DONNEES",
         "ATTENTE CARNET",
+        "ORDER_BLOCKED",
+        "WS_TRADING_OFF",
+        "_SNAPSHOT_EMPTY",
+        "REFERENCE_SNAPSHOT_EMPTY",
+        "OKX_SNAPSHOT_EMPTY",
+        "KRAKEN_SNAPSHOT_EMPTY",
+        "COINBASE_SNAPSHOT_EMPTY",
+        "SYMBOL_RULES_EMPTY",
     ];
     if WARN_ONLY.iter().any(|k| u.contains(k)) {
         return IssueSeverity::Warning;
@@ -220,6 +259,10 @@ pub fn classify_issue_severity(text: &str) -> IssueSeverity {
         "RATE LIMIT",
         "HARD_STALE",
         "ORDERBOOK_CROSSED",
+        "ORDER_FAILED",
+        "WS_UNAVAILABLE",
+        "WS_TRADING",
+        "ADD_ORDER",
         "REST_ERROR",
         "WS_ERROR",
         "WS_CONNECT_FAILED",
@@ -272,13 +315,22 @@ pub fn split_banner_fragments(combined: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn collect_stack_issues(fragments: &[String]) -> (Vec<String>, Vec<String>) {
-    let mut errors = Vec::new();
-    let mut warnings = Vec::new();
-    for fragment in fragments {
-        append_classified_fragment(&mut errors, &mut warnings, fragment.clone());
+pub fn append_journal_to_board(
+    journal: &IssueJournal,
+    board: &mut StackIssueBoard,
+    max_per_severity: usize,
+) {
+    for (severity, text) in journal.active_records() {
+        match severity {
+            IssueSeverity::Error if board.errors().len() < max_per_severity => {
+                board.push_error(text.to_string());
+            }
+            IssueSeverity::Warning if board.warnings().len() < max_per_severity => {
+                board.push_warning(text.to_string());
+            }
+            _ => {}
+        }
     }
-    (errors, warnings)
 }
 
 #[cfg(test)]
@@ -326,11 +378,20 @@ mod tests {
     }
 
     #[test]
-    fn stack_board_from_combined_text_splits_fragments() {
-        let board = StackIssueBoard::from_combined_text(
-            "CONNECTIVITY HUB OFF · ORDERBOOK_RECEPTION_LATE symbol=ADA",
+    fn classify_order_blocked_as_warning() {
+        assert_eq!(
+            classify_issue_severity(
+                "ORDER_BLOCKED | stage=preflight | venue=kraken | symbol=ETHEUR | reason=min"
+            ),
+            IssueSeverity::Warning
         );
-        assert!(!board.errors().is_empty());
-        assert!(!board.warnings().is_empty());
+    }
+
+    #[test]
+    fn classify_order_failed_as_error() {
+        assert_eq!(
+            classify_issue_severity("ORDER_FAILED | venue=kraken | error=disconnected"),
+            IssueSeverity::Error
+        );
     }
 }

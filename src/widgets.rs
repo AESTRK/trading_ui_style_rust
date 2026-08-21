@@ -1,9 +1,17 @@
 //! Widgets graphiques peints — pas de glyphes Unicode fragiles (coches, flèches combo).
 
-use egui::{Color32, CursorIcon, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
+use egui::{
+    Color32, CursorIcon, FontId, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
+};
 
 use crate::egui_theme::color;
 use crate::{palette, ThemeMode, BUY_GREEN};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SideAccent {
+    Buy,
+    Sell,
+}
 
 /// Trait de contour pour widgets interactifs (case à cocher, flèche combo).
 pub fn widget_stroke(ui: &Ui, width: f32) -> Stroke {
@@ -155,6 +163,82 @@ pub fn checkbox_row(ui: &mut Ui, checked: &mut bool, label: &str) -> Response {
         cb
     })
     .inner
+}
+
+/// Bouton BUY / SELL — fond accent plein quand sélectionné (lisible en thème sombre).
+pub fn side_toggle_button(
+    ui: &mut Ui,
+    selected: bool,
+    side: SideAccent,
+    enabled: bool,
+    label: &str,
+) -> Response {
+    let mode = if ui.visuals().dark_mode {
+        ThemeMode::Dark
+    } else {
+        ThemeMode::Light
+    };
+    let p = palette(mode);
+    let accent = color(match side {
+        SideAccent::Buy => p.buy,
+        SideAccent::Sell => p.sell,
+    });
+
+    let padding = Vec2::new(14.0, 7.0);
+    let font = FontId::proportional(13.0);
+    let layout_label = ui
+        .painter()
+        .layout(label.to_owned(), font.clone(), Color32::PLACEHOLDER, f32::INFINITY);
+    let desired = layout_label.size() + padding * 2.0;
+    let (rect, mut response) = ui.allocate_exact_size(desired, Sense::click());
+
+    let hovered = enabled && response.hovered();
+    let (fill, text_color, stroke) = if !enabled {
+        (
+            color(p.widget_inactive),
+            ui.visuals().weak_text_color(),
+            Stroke::NONE,
+        )
+    } else if selected {
+        (
+            accent,
+            Color32::WHITE,
+            Stroke::new(2.0_f32, color(p.selection_stroke)),
+        )
+    } else if hovered {
+        (
+            accent.gamma_multiply(0.22),
+            accent,
+            Stroke::new(1.5_f32, accent),
+        )
+    } else {
+        (
+            color(p.widget_inactive),
+            accent,
+            Stroke::new(1.0_f32, accent.gamma_multiply(0.55)),
+        )
+    };
+
+    ui.painter().rect(
+        rect,
+        egui::CornerRadius::same(4),
+        fill,
+        stroke,
+        egui::StrokeKind::Inside,
+    );
+    let galley = ui
+        .painter()
+        .layout(label.to_owned(), font, text_color, f32::INFINITY);
+    let text_pos = rect.center() - galley.size() / 2.0;
+    ui.painter().galley(text_pos, galley, text_color);
+
+    if response.clicked() && enabled {
+        response.mark_changed();
+    }
+    if enabled {
+        response = response.on_hover_cursor(CursorIcon::PointingHand);
+    }
+    response
 }
 
 /// Bouton de sélection — distinct visuellement d'un état « publié » (vert).
