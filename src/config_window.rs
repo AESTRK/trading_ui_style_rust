@@ -186,10 +186,36 @@ pub fn config_paths_footer(ui: &mut egui::Ui, reference: &str, runtime: &str) {
             .wrap()
             .selectable(true),
     );
-    ui.label("Runtime:");
+    ui.label("Overrides (config/local):");
     ui.add(
         egui::Label::new(egui::RichText::new(runtime).monospace().small())
             .wrap()
             .selectable(true),
     );
+}
+
+/// Bundle macOS Config Manager (`io.aestrk.configmanager`).
+pub const CONFIG_MANAGER_BUNDLE_ID: &str = "io.aestrk.configmanager";
+
+/// Lance Config Manager (macOS `open -b`).
+pub fn open_config_manager() {
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        let _ = Command::new("open")
+            .args(["-b", CONFIG_MANAGER_BUNDLE_ID])
+            .status();
+    }
+}
+
+/// Bloc standard : préférences → Config Manager.
+pub fn config_manager_hint(ui: &mut egui::Ui) {
+    ui.separator();
+    ui.label(egui::RichText::new("Préférences utilisateur").strong());
+    ui.label(
+        "Colonnes, watchlists, refresh, scope trading… — éditez dans Config Manager (onglet Préférences).",
+    );
+    if ui.button("Ouvrir Config Manager").clicked() {
+        open_config_manager();
+    }
 }
