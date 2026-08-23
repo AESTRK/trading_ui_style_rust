@@ -8,8 +8,8 @@ use serde_json::Value;
 
 use crate::egui_theme;
 
-/// Libellé du bouton toolbar (identique à `orderbook_rust`).
-pub const MENU_CONFIG_LABEL: &str = "Menu config";
+/// Libellé du bouton toolbar → deep link Config Manager.
+pub const MENU_CONFIG_LABEL: &str = "Config Manager";
 
 /// Taille par défaut des fenêtres config.
 pub const CONFIG_WINDOW_SIZE: egui::Vec2 = egui::vec2(460.0, 520.0);
@@ -66,7 +66,22 @@ pub fn paired_config_viewport_id(app_id: &str, parent: egui::ViewportId) -> egui
     egui::ViewportId::from_hash_of(("alphalagoon_config_viewport", app_id, parent))
 }
 
-/// Bouton toolbar standard. Ouvre la fenêtre de config.
+/// Lance Config Manager pour le crate courant (`APP_PERSIST_ID` si défini).
+pub fn open_config_manager_for_crate(crate_app_id: &str) {
+    open_config_manager(&resolve_persist_app_id(crate_app_id));
+}
+
+/// Bouton toolbar : ouvre Config Manager sur la section persist de cette app.
+pub fn config_manager_toolbar_button(ui: &mut egui::Ui, crate_app_id: &str) -> bool {
+    if ui.button(MENU_CONFIG_LABEL).clicked() {
+        open_config_manager_for_crate(crate_app_id);
+        true
+    } else {
+        false
+    }
+}
+
+/// Ancien bouton — ouvrait une fenêtre config in-app (préférer `config_manager_toolbar_button`).
 pub fn menu_config_button(ui: &mut egui::Ui, open: &mut bool) -> bool {
     if ui.button(MENU_CONFIG_LABEL).clicked() {
         *open = true;

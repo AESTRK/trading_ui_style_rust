@@ -1,20 +1,20 @@
-//! Barre d'outils standard — « Menu config » en haut à gauche (référence `open_orders_rust`).
+//! Barre d'outils standard — bouton Config Manager (deep link app).
 
 use eframe::egui;
 
-use crate::config_window::menu_config_button;
+use crate::config_window::config_manager_toolbar_button;
 
-/// Panneau top compact : bouton config, séparateur, puis contenu app (statut, actions, onglets).
+/// Panneau top compact : ouvre Config Manager sur cette app, puis contenu app.
 pub fn show_app_toolbar<R>(
     ctx: &egui::Context,
-    open_config: &mut bool,
+    crate_app_id: &str,
     add_contents: impl FnOnce(&mut egui::Ui) -> R,
 ) -> R {
     let mut out = None;
     egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
         out = Some(
             ui.horizontal_wrapped(|ui| {
-                menu_config_button(ui, open_config);
+                config_manager_toolbar_button(ui, crate_app_id);
                 ui.separator();
                 add_contents(ui)
             })
