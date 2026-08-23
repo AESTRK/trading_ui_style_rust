@@ -232,13 +232,19 @@ pub fn minimal_config_panel(ui: &mut egui::Ui, app_id: &str, reference: &str, ru
     config_paths_footer(ui, reference, runtime);
 }
 
+/// ID stack (`APP_PERSIST_ID`) ou nom crate Rust.
+fn resolve_persist_app_id(crate_app_id: &str) -> String {
+    app_runtime_rust::persist_app_id(crate_app_id)
+}
+
 /// Installe l'écouteur ZMQ + relay (une fois par app).
 fn ensure_config_persist_listener(ctx: &egui::Context, app_id: &str, env_keys: &[&str]) {
     static INSTALLED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    let persist_id = resolve_persist_app_id(app_id);
     let key = if env_keys.is_empty() {
-        app_id.to_string()
+        persist_id.clone()
     } else {
-        format!("{app_id}\0{}", env_keys.join("\0"))
+        format!("{persist_id}\0{}", env_keys.join("\0"))
     };
     let mut installed = INSTALLED
         .get_or_init(|| Mutex::new(HashSet::new()))
@@ -248,8 +254,8 @@ fn ensure_config_persist_listener(ctx: &egui::Context, app_id: &str, env_keys: &
         return;
     }
     let ctx = ctx.clone();
-    let app_id = app_id.to_string();
-    app_runtime_rust::install_config_persist_listener(&app_id, move || {
+    let persist_id = persist_id.clone();
+    app_runtime_rust::install_config_persist_listener(&persist_id, move || {
         ctx.request_repaint();
     });
     if std::env::var("CONFIG_PERSIST_RELAY_EXTERNAL")
@@ -278,12 +284,13 @@ pub fn poll_config_persist_for(
     app_id: &str,
     env_keys: &[&str],
 ) -> Option<Value> {
+    let persist_id = resolve_persist_app_id(app_id);
     ensure_config_persist_listener(ctx, app_id, env_keys);
-    let message = app_runtime_rust::take_config_persist_update(app_id)?;
-    let filtered = app_runtime_rust::filter_persist_for_app(app_id, &message.persist);
+    let message = app_runtime_rust::take_config_persist_update(&persist_id)?;
+    let filtered = app_runtime_rust::filter_persist_for_app(&persist_id, &message.persist);
     let mut msg = message;
     msg.persist = filtered.clone();
-    app_runtime_rust::apply_config_persist_message(app_id, env_keys, &msg).ok()
+    app_runtime_rust::apply_config_persist_message(&persist_id, env_keys, &msg).ok()
 }
 
 /// Applique le reload si Config Manager a poussé une mise à jour persist.
