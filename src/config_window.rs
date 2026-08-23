@@ -220,6 +220,7 @@ pub const CONFIG_MANAGER_BUNDLE_ID: &str = "io.aestrk.configmanager";
 pub const CONFIG_MANAGER_URL_SCHEME: &str = "io.aestrk.configmanager";
 
 /// Lance Config Manager (macOS `open`), optionnellement sur la section d'une app.
+/// Une seule fenêtre côté Config Manager (`Window` + deep link sur l'existant).
 pub fn open_config_manager(app_id: &str) {
     #[cfg(target_os = "macos")]
     {
