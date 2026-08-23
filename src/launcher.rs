@@ -40,6 +40,7 @@ pub fn run_native(
     options: eframe::NativeOptions,
     creator: eframe::AppCreator<'_>,
 ) -> eframe::Result {
+    app_runtime_rust::ensure_config_persist_relay();
     eframe::run_native(app_name, prepare_native_options(options), creator)
 }
 

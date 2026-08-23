@@ -1,6 +1,10 @@
 //! Fenêtre de configuration détachable (viewport OS) — pattern emergency_panel / orderbook stack.
 
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
+
 use eframe::egui;
+use serde_json::Value;
 
 use crate::egui_theme;
 
@@ -140,7 +144,7 @@ pub fn show_config_viewport_with_id_sized(
         |ctx, _class| {
             egui_theme::apply_system_visuals(ctx);
             egui_theme::show_central_panel(ctx, |ui| {
-                ui.heading("Menu config / diagnostic");
+                ui.heading("Configuration");
                 ui.separator();
                 egui::ScrollArea::vertical()
                     .id_salt(egui::Id::new((viewport_id, "config_scroll")))
@@ -197,25 +201,121 @@ pub fn config_paths_footer(ui: &mut egui::Ui, reference: &str, runtime: &str) {
 /// Bundle macOS Config Manager (`io.aestrk.configmanager`).
 pub const CONFIG_MANAGER_BUNDLE_ID: &str = "io.aestrk.configmanager";
 
-/// Lance Config Manager (macOS `open -b`).
-pub fn open_config_manager() {
+/// Schéma URL deep link : `io.aestrk.configmanager://app/<app_id>`.
+pub const CONFIG_MANAGER_URL_SCHEME: &str = "io.aestrk.configmanager";
+
+/// Lance Config Manager (macOS `open`), optionnellement sur la section d'une app.
+pub fn open_config_manager(app_id: &str) {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
-        let _ = Command::new("open")
-            .args(["-b", CONFIG_MANAGER_BUNDLE_ID])
-            .status();
+        let url = format!("{CONFIG_MANAGER_URL_SCHEME}://app/{app_id}");
+        let _ = Command::new("open").arg(url).status();
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app_id;
     }
 }
 
-/// Bloc standard : préférences → Config Manager.
-pub fn config_manager_hint(ui: &mut egui::Ui) {
-    ui.separator();
-    ui.label(egui::RichText::new("Préférences utilisateur").strong());
+/// Corps standard du menu config : Config Manager + chemins fichiers.
+pub fn minimal_config_panel(ui: &mut egui::Ui, app_id: &str, reference: &str, runtime: &str) {
+    config_manager_hint(ui, app_id);
+    ui.add_space(6.0);
     ui.label(
-        "Colonnes, watchlists, refresh, scope trading… — éditez dans Config Manager (onglet Préférences).",
+        egui::RichText::new(
+            "Les modifications enregistrées dans Config Manager sont poussées en temps réel (bus ZMQ).",
+        )
+        .weak()
+        .small(),
+    );
+    config_paths_footer(ui, reference, runtime);
+}
+
+/// Installe l'écouteur ZMQ + relay (une fois par app).
+fn ensure_config_persist_listener(ctx: &egui::Context, app_id: &str, env_keys: &[&str]) {
+    static INSTALLED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    let key = if env_keys.is_empty() {
+        app_id.to_string()
+    } else {
+        format!("{app_id}\0{}", env_keys.join("\0"))
+    };
+    let mut installed = INSTALLED
+        .get_or_init(|| Mutex::new(HashSet::new()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if !installed.insert(key) {
+        return;
+    }
+    let ctx = ctx.clone();
+    let app_id = app_id.to_string();
+    app_runtime_rust::install_config_persist_listener(&app_id, move || {
+        ctx.request_repaint();
+    });
+    if std::env::var("CONFIG_PERSIST_RELAY_EXTERNAL")
+        .map(|v| {
+            let v = v.trim().to_lowercase();
+            !(v == "1" || v == "true" || v == "yes" || v == "on")
+        })
+        .unwrap_or(true)
+    {
+        app_runtime_rust::ensure_config_persist_relay();
+    }
+}
+
+/// À appeler en tête de `update()` — `Some(persist)` si Config Manager a poussé une mise à jour.
+pub fn poll_config_persist(
+    ctx: &egui::Context,
+    app_id: &str,
+    env_keys: &[&str],
+) -> Option<Value> {
+    poll_config_persist_for(ctx, app_id, env_keys)
+}
+
+/// Variante avec les mêmes `env_keys` que `AppPaths::runtime_settings_file`.
+pub fn poll_config_persist_for(
+    ctx: &egui::Context,
+    app_id: &str,
+    env_keys: &[&str],
+) -> Option<Value> {
+    ensure_config_persist_listener(ctx, app_id, env_keys);
+    let message = app_runtime_rust::take_config_persist_update(app_id)?;
+    let filtered = app_runtime_rust::filter_persist_for_app(app_id, &message.persist);
+    let mut msg = message;
+    msg.persist = filtered.clone();
+    app_runtime_rust::apply_config_persist_message(app_id, env_keys, &msg).ok()
+}
+
+/// Applique le reload si Config Manager a poussé une mise à jour persist.
+pub fn sync_config_persist(
+    ctx: &egui::Context,
+    app_id: &str,
+    reload: impl FnOnce(Option<Value>),
+) {
+    sync_config_persist_for(ctx, app_id, &[], reload);
+}
+
+/// Variante avec les mêmes `env_keys` que `AppPaths::runtime_settings_file`.
+pub fn sync_config_persist_for(
+    ctx: &egui::Context,
+    app_id: &str,
+    env_keys: &[&str],
+    reload: impl FnOnce(Option<Value>),
+) {
+    if let Some(persist) = poll_config_persist_for(ctx, app_id, env_keys) {
+        app_runtime_rust::apply_persist_env(&persist);
+        reload(Some(persist));
+    }
+}
+
+/// Bloc standard : IPC + préférences → Config Manager.
+pub fn config_manager_hint(ui: &mut egui::Ui, app_id: &str) {
+    ui.separator();
+    ui.label(egui::RichText::new("IPC et préférences").strong());
+    ui.label(
+        "Ports, endpoints et options persistées — éditez dans Config Manager (Registre IPC + onglet app). Les changements enregistrés sont poussés sur le bus config en temps réel.",
     );
     if ui.button("Ouvrir Config Manager").clicked() {
-        open_config_manager();
+        open_config_manager(app_id);
     }
 }
