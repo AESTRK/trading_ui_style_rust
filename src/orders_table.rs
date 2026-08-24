@@ -15,9 +15,13 @@ pub const ORDER_TABLE_COLUMNS: &[&str] = &[
     "type",
     "status",
     "limit_px",
+    "stop_px",
+    "cur_px",
     "avg_px",
     "exec_qty",
     "orig_qty",
+    "rem_qty",
+    "tif",
     "client_id",
 ];
 
@@ -49,9 +53,13 @@ pub struct OrderGridCells {
     pub order_type: String,
     pub status: String,
     pub limit_px: String,
+    pub stop_px: String,
+    pub cur_px: String,
     pub avg_px: String,
     pub exec_qty: String,
     pub orig_qty: String,
+    pub rem_qty: String,
+    pub tif: String,
     pub client_id: String,
 }
 
@@ -67,9 +75,13 @@ impl OrderGridCells {
             "type" => &self.order_type,
             "status" => &self.status,
             "limit_px" => &self.limit_px,
+            "stop_px" => &self.stop_px,
+            "cur_px" => &self.cur_px,
             "avg_px" => &self.avg_px,
             "exec_qty" => &self.exec_qty,
             "orig_qty" => &self.orig_qty,
+            "rem_qty" => &self.rem_qty,
+            "tif" => &self.tif,
             "client_id" => &self.client_id,
             _ => "",
         }
@@ -83,6 +95,9 @@ pub struct OrderGridRow {
     pub avg_px: f64,
     pub exec_qty: f64,
     pub orig_qty: f64,
+    pub rem_qty: f64,
+    pub stop_px: f64,
+    pub cur_px: f64,
     pub cells: OrderGridCells,
     pub color: Color32,
 }
@@ -118,9 +133,12 @@ fn compare_rows(a: &OrderGridRow, b: &OrderGridRow, col: &str) -> std::cmp::Orde
     match col {
         "updated" => a.updated_ms.cmp(&b.updated_ms),
         "limit_px" => f64_cmp(a.limit_px, b.limit_px),
+        "stop_px" => f64_cmp(a.stop_px, b.stop_px),
+        "cur_px" => f64_cmp(a.cur_px, b.cur_px),
         "avg_px" => f64_cmp(a.avg_px, b.avg_px),
         "exec_qty" => f64_cmp(a.exec_qty, b.exec_qty),
         "orig_qty" => f64_cmp(a.orig_qty, b.orig_qty),
+        "rem_qty" => f64_cmp(a.rem_qty, b.rem_qty),
         _ => a.cells.get(col).cmp(b.cells.get(col)),
     }
 }
@@ -193,8 +211,9 @@ fn column_width(key: &str) -> f32 {
         "side" => 44.0,
         "type" => 64.0,
         "status" => 72.0,
-        "limit_px" | "avg_px" => 88.0,
-        "exec_qty" | "orig_qty" => 92.0,
+        "limit_px" | "stop_px" | "cur_px" | "avg_px" => 88.0,
+        "exec_qty" | "orig_qty" | "rem_qty" => 92.0,
+        "tif" => 48.0,
         "client_id" => 120.0,
         _ => 72.0,
     }
@@ -211,9 +230,13 @@ fn column_label(key: &str) -> String {
         "type" => "TYPE".to_string(),
         "status" => "STATUS".to_string(),
         "limit_px" => "LIMIT_PX".to_string(),
+        "stop_px" => "STOP_PX".to_string(),
+        "cur_px" => "CUR_PX".to_string(),
         "avg_px" => "AVG_PX".to_string(),
         "exec_qty" => "EXEC_QTY".to_string(),
         "orig_qty" => "ORIG_QTY".to_string(),
+        "rem_qty" => "REM_QTY".to_string(),
+        "tif" => "TIF".to_string(),
         "client_id" => "CLIENT_ID".to_string(),
         other => other.to_uppercase(),
     }

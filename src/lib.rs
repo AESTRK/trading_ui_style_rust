@@ -5,6 +5,7 @@ pub mod data_table;
 pub mod egui_theme;
 pub mod issues;
 pub mod launcher;
+pub mod order_grid;
 pub mod orders_table;
 pub mod toolbar;
 

@@ -3478,6 +3478,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "trading_models_rust"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+]
+
+[[package]]
 name = "trading_ui_style_rust"
 version = "0.1.0"
 dependencies = [
@@ -3486,6 +3494,7 @@ dependencies = [
  "egui",
  "serde_json",
  "tracing",
+ "trading_models_rust",
  "winit",
 ]
 

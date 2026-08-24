@@ -165,12 +165,15 @@ pub fn checkbox_row(ui: &mut Ui, checked: &mut bool, label: &str) -> Response {
     .inner
 }
 
-/// Bouton BUY / SELL — fond accent plein quand sélectionné (lisible en thème sombre).
+/// Bouton BUY / SELL — fond accent plein quand sélectionné (lisible dark / light).
+///
+/// `order_allowed` : indique si la venue autorise ce côté (trading_control). N'empêche pas
+/// la sélection UI ; seul le style non sélectionné est atténué quand `false`.
 pub fn side_toggle_button(
     ui: &mut Ui,
     selected: bool,
     side: SideAccent,
-    enabled: bool,
+    order_allowed: bool,
     label: &str,
 ) -> Response {
     let mode = if ui.visuals().dark_mode {
@@ -192,18 +195,29 @@ pub fn side_toggle_button(
     let desired = layout_label.size() + padding * 2.0;
     let (rect, mut response) = ui.allocate_exact_size(desired, Sense::click());
 
-    let hovered = enabled && response.hovered();
-    let (fill, text_color, stroke) = if !enabled {
+    let hovered = response.hovered();
+    let selected_fill_strength = if mode == ThemeMode::Dark { 1.0 } else { 0.92 };
+    let blocked_selected_fill = if mode == ThemeMode::Dark { 0.52 } else { 0.38 };
+
+    let (fill, text_color, stroke) = if selected {
+        if order_allowed {
+            (
+                accent.gamma_multiply(selected_fill_strength),
+                Color32::WHITE,
+                Stroke::new(2.0_f32, color(p.selection_stroke)),
+            )
+        } else {
+            (
+                accent.gamma_multiply(blocked_selected_fill),
+                Color32::WHITE,
+                Stroke::new(1.5_f32, accent),
+            )
+        }
+    } else if !order_allowed {
         (
             color(p.widget_inactive),
             ui.visuals().weak_text_color(),
-            Stroke::NONE,
-        )
-    } else if selected {
-        (
-            accent,
-            Color32::WHITE,
-            Stroke::new(2.0_f32, color(p.selection_stroke)),
+            Stroke::new(1.0_f32, accent.gamma_multiply(0.35)),
         )
     } else if hovered {
         (
@@ -232,12 +246,10 @@ pub fn side_toggle_button(
     let text_pos = rect.center() - galley.size() / 2.0;
     ui.painter().galley(text_pos, galley, text_color);
 
-    if response.clicked() && enabled {
+    if response.clicked() {
         response.mark_changed();
     }
-    if enabled {
-        response = response.on_hover_cursor(CursorIcon::PointingHand);
-    }
+    response = response.on_hover_cursor(CursorIcon::PointingHand);
     response
 }
 
