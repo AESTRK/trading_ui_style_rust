@@ -163,6 +163,22 @@ pub fn format_pct(value: Option<f64>) -> String {
         .unwrap_or_else(|| "n/a".to_string())
 }
 
+/// Montant 4 décimales, séparateurs FR (usage PnL & Risk Python `fmt_amount_fr`).
+pub fn format_amount_fr(x: f64) -> String {
+    let sign = if x.is_sign_negative() { "-" } else { "" };
+    let raw = format!("{:.4}", x.abs());
+    let (int_part, frac) = raw.split_once('.').unwrap_or((raw.as_str(), "0000"));
+    let mut grouped = String::new();
+    for (i, ch) in int_part.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            grouped.push(' ');
+        }
+        grouped.push(ch);
+    }
+    let int_grouped: String = grouped.chars().rev().collect();
+    format!("{sign}{int_grouped},{frac}")
+}
+
 pub fn format_eur_compact(amount: f64) -> String {
     if amount >= 1_000_000_000.0 {
         format!("{:.2}B€", amount / 1_000_000_000.0)
@@ -194,5 +210,12 @@ mod tests {
         assert_eq!(format_pct(Some(1.234)), "+1.23%");
         assert_eq!(format_pct(Some(-1.234)), "-1.23%");
         assert_eq!(format_pct(None), "n/a");
+    }
+
+    #[test]
+    fn amount_fr_matches_python() {
+        assert_eq!(format_amount_fr(1234.5), "1 234,5000");
+        assert_eq!(format_amount_fr(-0.25), "-0,2500");
+        assert_eq!(format_amount_fr(1_234_567.5), "1 234 567,5000");
     }
 }
