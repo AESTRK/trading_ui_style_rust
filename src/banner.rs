@@ -5,6 +5,7 @@ use egui::{self, RichText};
 
 pub const BANNER_NETWORK_OK: Rgb = Rgb::new(23, 92, 211);
 pub const BANNER_NETWORK_ALERT: Rgb = Rgb::new(217, 45, 32);
+pub const BANNER_RESOLVED: Rgb = Rgb::new(28, 140, 72);
 pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
@@ -175,6 +176,23 @@ pub fn draw_feed_banner(
             });
         });
     clicked
+}
+
+/// Bandeau vert fixe (problème résolu, sans clignotement).
+pub fn draw_resolved_banner(ui: &mut egui::Ui, ctx: &egui::Context, title: &str, detail: &str) {
+    draw_feed_banner(
+        ui,
+        ctx,
+        &FeedBanner {
+            bg: BANNER_RESOLVED,
+            title: title.to_string(),
+            detail: detail.to_string(),
+        },
+        &[],
+        None,
+        None,
+        false,
+    );
 }
 
 /// Bandeaux empilés erreur (rouge clignotant) + avertissement (ambre).

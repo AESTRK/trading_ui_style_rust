@@ -3,12 +3,14 @@
 //! Pattern de référence : `orderbook_rust` (`IssueJournal` + bandeau rouge / orange).
 
 use crate::issues::{IssueJournal, IssueSeverity, StackIssueBoard};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const DEFAULT_ISSUE_TTL: Duration = Duration::from_secs(45);
 pub const DEFAULT_MAX_ISSUE_RECORDS: usize = 16;
 pub const DEFAULT_MAX_BANNER_ISSUES: usize = 6;
 pub const DEFAULT_WARNING_BANNER_TITLE: &str = "AVERTISSEMENT";
+pub const DEFAULT_RESOLVED_BANNER_SECS: f64 = 4.0;
+pub const DEFAULT_RESOLVED_BANNER_DETAIL: &str = "Le problème signalé est corrigé.";
 
 /// Journal opérationnel par application (`ORDERBOOK`, `MANUAL_ORDERS`, …).
 pub struct AppIssueReporter {
@@ -95,6 +97,75 @@ pub fn issue_error_title(app_display_name: &str) -> String {
     format!("ERREUR {}", app_display_name.trim())
 }
 
+pub fn issue_resolved_title(app_display_name: &str) -> String {
+    format!("RÉSOLU {}", app_display_name.trim())
+}
+
+/// Bandeau vert top après disparition des erreurs (flash puis auto-dismiss).
+pub fn show_resolved_banner(
+    ctx: &egui::Context,
+    app_display_name: &str,
+    detail: &str,
+) {
+    let title = issue_resolved_title(app_display_name);
+    egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner")).show(ctx, |ui| {
+        crate::banner::draw_resolved_banner(ui, ctx, &title, detail);
+    });
+    ctx.request_repaint_after(Duration::from_millis(33));
+}
+
+/// Mémorise les erreurs actives et affiche un flash vert quand elles disparaissent.
+#[derive(Debug, Default)]
+pub struct IssueBannerController {
+    had_errors: bool,
+    resolved_until: Option<Instant>,
+}
+
+impl IssueBannerController {
+    pub fn show(
+        &mut self,
+        ctx: &egui::Context,
+        app_display_name: &str,
+        board: &StackIssueBoard,
+    ) {
+        self.show_with_detail(ctx, app_display_name, board, DEFAULT_RESOLVED_BANNER_DETAIL);
+    }
+
+    pub fn show_with_detail(
+        &mut self,
+        ctx: &egui::Context,
+        app_display_name: &str,
+        board: &StackIssueBoard,
+        resolved_detail: &str,
+    ) {
+        self.on_board(board);
+        if self.showing_resolved() {
+            show_resolved_banner(ctx, app_display_name, resolved_detail);
+            return;
+        }
+        show_app_issues(ctx, app_display_name, board);
+    }
+
+    fn on_board(&mut self, board: &StackIssueBoard) {
+        let errors_active = board.has_errors();
+        if self.had_errors && !errors_active {
+            self.resolved_until =
+                Some(Instant::now() + Duration::from_secs_f64(DEFAULT_RESOLVED_BANNER_SECS));
+        }
+        self.had_errors = errors_active;
+        if let Some(until) = self.resolved_until {
+            if Instant::now() >= until {
+                self.resolved_until = None;
+            }
+        }
+    }
+
+    fn showing_resolved(&self) -> bool {
+        self.resolved_until
+            .is_some_and(|until| Instant::now() < until)
+    }
+}
+
 /// Bandeau top rouge / orange + repaint pour clignotement.
 pub fn show_app_issues(ctx: &egui::Context, app_display_name: &str, board: &StackIssueBoard) {
     if board.is_empty() {
@@ -166,5 +237,23 @@ mod tests {
         reporter.report(IssueSeverity::Warning, "ORDER_BLOCKED | reason=x");
         let board = build_issue_board("", reporter.journal(), 4);
         assert_eq!(board.warnings().len(), 1);
+    }
+
+    #[test]
+    fn issue_resolved_title_formats_app_name() {
+        assert_eq!(issue_resolved_title("FEES"), "RÉSOLU FEES");
+    }
+
+    #[test]
+    fn issue_banner_controller_enters_resolved_after_errors_clear() {
+        let mut ctrl = IssueBannerController::default();
+        let mut board = StackIssueBoard::new();
+        board.push_error("Binance indisponible");
+        ctrl.on_board(&board);
+        assert!(!ctrl.showing_resolved());
+
+        board = StackIssueBoard::new();
+        ctrl.on_board(&board);
+        assert!(ctrl.showing_resolved());
     }
 }

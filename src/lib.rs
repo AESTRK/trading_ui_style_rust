@@ -19,9 +19,11 @@ pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
 
 pub use banner::FeedBanner;
 pub use app_issues::{
-    build_issue_board, connectivity_issue_board, issue_error_title, operational_issue_board,
-    show_app_issues, show_classified_connectivity_banner, AppIssueReporter, DEFAULT_ISSUE_TTL,
-    DEFAULT_MAX_BANNER_ISSUES, DEFAULT_MAX_ISSUE_RECORDS, DEFAULT_WARNING_BANNER_TITLE,
+    build_issue_board, connectivity_issue_board, issue_error_title, issue_resolved_title,
+    operational_issue_board, show_app_issues, show_classified_connectivity_banner,
+    show_resolved_banner, AppIssueReporter, IssueBannerController, DEFAULT_ISSUE_TTL,
+    DEFAULT_MAX_BANNER_ISSUES, DEFAULT_MAX_ISSUE_RECORDS, DEFAULT_RESOLVED_BANNER_DETAIL,
+    DEFAULT_RESOLVED_BANNER_SECS, DEFAULT_WARNING_BANNER_TITLE,
 };
 
 pub use issues::{

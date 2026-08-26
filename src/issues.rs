@@ -177,6 +177,10 @@ impl StackIssueBoard {
         self.errors.is_empty() && self.warnings.is_empty()
     }
 
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
     pub fn errors(&self) -> &[String] {
         &self.errors
     }
