@@ -294,19 +294,49 @@ pub fn poll_config_persist(
     poll_config_persist_for(ctx, app_id, env_keys)
 }
 
+/// Mise à jour bus config persist (réglages + commandes éphémères).
+pub struct ConfigPersistSync {
+    pub persist: Option<serde_json::Value>,
+    pub commands: Vec<app_runtime_rust::ConfigPersistCommand>,
+}
+
+/// Variante avec les mêmes `env_keys` que `AppPaths::runtime_settings_file`.
+pub fn poll_config_persist_sync_for(
+    ctx: &egui::Context,
+    app_id: &str,
+    env_keys: &[&str],
+) -> Option<ConfigPersistSync> {
+    let persist_id = resolve_persist_app_id(app_id);
+    ensure_config_persist_listener(ctx, app_id, env_keys);
+    let message = app_runtime_rust::take_config_persist_update(&persist_id)?;
+    let commands = message.commands.clone();
+    let filtered = app_runtime_rust::filter_persist_for_app(&persist_id, &message.persist);
+    let mut msg = message;
+    msg.persist = filtered.clone();
+    let persist = if persist_payload_nonempty(&filtered) {
+        app_runtime_rust::apply_config_persist_message(&persist_id, env_keys, &msg)
+            .ok()
+            .filter(|v| persist_payload_nonempty(v))
+    } else {
+        let _ = app_runtime_rust::apply_config_persist_message(&persist_id, env_keys, &msg);
+        None
+    };
+    Some(ConfigPersistSync { persist, commands })
+}
+
+fn persist_payload_nonempty(persist: &serde_json::Value) -> bool {
+    persist
+        .as_object()
+        .is_some_and(|obj| obj.iter().any(|(k, v)| !k.starts_with('_') && !v.is_null()))
+}
+
 /// Variante avec les mêmes `env_keys` que `AppPaths::runtime_settings_file`.
 pub fn poll_config_persist_for(
     ctx: &egui::Context,
     app_id: &str,
     env_keys: &[&str],
-) -> Option<Value> {
-    let persist_id = resolve_persist_app_id(app_id);
-    ensure_config_persist_listener(ctx, app_id, env_keys);
-    let message = app_runtime_rust::take_config_persist_update(&persist_id)?;
-    let filtered = app_runtime_rust::filter_persist_for_app(&persist_id, &message.persist);
-    let mut msg = message;
-    msg.persist = filtered.clone();
-    app_runtime_rust::apply_config_persist_message(&persist_id, env_keys, &msg).ok()
+) -> Option<serde_json::Value> {
+    poll_config_persist_sync_for(ctx, app_id, env_keys).and_then(|sync| sync.persist)
 }
 
 /// Applique le reload si Config Manager a poussé une mise à jour persist.
@@ -316,6 +346,29 @@ pub fn sync_config_persist(
     reload: impl FnOnce(Option<Value>),
 ) {
     sync_config_persist_for(ctx, app_id, &[], reload);
+}
+
+/// Persist + commandes éphémères (tests audio, etc.).
+pub fn sync_config_persist_with(
+    ctx: &egui::Context,
+    app_id: &str,
+    reload: impl FnOnce(&ConfigPersistSync),
+) {
+    sync_config_persist_with_for(ctx, app_id, &[], reload);
+}
+
+pub fn sync_config_persist_with_for(
+    ctx: &egui::Context,
+    app_id: &str,
+    env_keys: &[&str],
+    reload: impl FnOnce(&ConfigPersistSync),
+) {
+    if let Some(sync) = poll_config_persist_sync_for(ctx, app_id, env_keys) {
+        if let Some(ref persist) = sync.persist {
+            app_runtime_rust::apply_persist_env(persist);
+        }
+        reload(&sync);
+    }
 }
 
 /// Variante avec les mêmes `env_keys` que `AppPaths::runtime_settings_file`.

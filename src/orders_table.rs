@@ -66,6 +66,29 @@ pub struct OrderGridCells {
 }
 
 impl OrderGridCells {
+    pub fn empty() -> Self {
+        Self {
+            updated: String::new(),
+            source: String::new(),
+            flag: String::new(),
+            symbol: String::new(),
+            order_id: String::new(),
+            side: String::new(),
+            order_type: String::new(),
+            status: String::new(),
+            limit_px: String::new(),
+            stop_px: String::new(),
+            cur_px: String::new(),
+            avg_px: String::new(),
+            min_sell_px: String::new(),
+            exec_qty: String::new(),
+            orig_qty: String::new(),
+            rem_qty: String::new(),
+            tif: String::new(),
+            client_id: String::new(),
+        }
+    }
+
     pub fn get(&self, key: &str) -> &str {
         match key {
             "updated" => &self.updated,
@@ -106,10 +129,18 @@ pub struct OrderGridRow {
 }
 
 pub fn apply_sort_click(sort: &mut OrderTableSort, key: Option<String>) {
+    apply_sort_click_for_columns(sort, key, ORDER_TABLE_COLUMNS);
+}
+
+pub fn apply_sort_click_for_columns(
+    sort: &mut OrderTableSort,
+    key: Option<String>,
+    visible_columns: &[&str],
+) {
     let Some(key) = key else {
         return;
     };
-    if !ORDER_TABLE_COLUMNS.contains(&key.as_str()) {
+    if !visible_columns.contains(&key.as_str()) {
         return;
     }
     if sort.column == key {
@@ -156,7 +187,24 @@ pub fn show_sortable_table(
     rows: &[OrderGridRow],
     sort: &mut OrderTableSort,
 ) {
-    let columns: Vec<String> = ORDER_TABLE_COLUMNS.iter().map(|s| s.to_string()).collect();
+    show_sortable_table_columns(ui, table_id, rows, sort, ORDER_TABLE_COLUMNS);
+}
+
+pub fn show_sortable_table_columns(
+    ui: &mut Ui,
+    table_id: Id,
+    rows: &[OrderGridRow],
+    sort: &mut OrderTableSort,
+    visible_columns: &[&str],
+) {
+    if visible_columns.is_empty() {
+        return;
+    }
+    if !visible_columns.contains(&sort.column.as_str()) {
+        sort.column = visible_columns[0].to_string();
+        sort.reverse = sort.column == "updated";
+    }
+    let columns: Vec<String> = visible_columns.iter().map(|s| s.to_string()).collect();
     let sort_column = sort.column.clone();
     let sort_reverse = sort.reverse;
 
@@ -201,13 +249,13 @@ pub fn show_sortable_table(
             }
         },
     );
-    apply_sort_click(sort, header_event.sort_key);
+    apply_sort_click_for_columns(sort, header_event.sort_key, visible_columns);
 }
 
 fn column_width(key: &str) -> f32 {
     match key {
         "updated" => 132.0,
-        "source" => 72.0,
+        "source" => 80.0,
         "flag" => 56.0,
         "symbol" => 88.0,
         "order_id" => 108.0,
