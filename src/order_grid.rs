@@ -92,6 +92,8 @@ pub fn open_order_grid_row_for_columns(
     }
 
     OrderGridRow {
+        venue: order.venue,
+        order_id: order.order_id.clone(),
         updated_ms: order.update_time_ms,
         limit_px: order.limit_price,
         avg_px: order.display_price(),
@@ -190,6 +192,8 @@ pub fn executed_order_grid_row_for_columns(
     }
 
     OrderGridRow {
+        venue: order.venue,
+        order_id: order.order_id.clone(),
         updated_ms: order.update_time_ms,
         limit_px: order.limit_price,
         avg_px: order.display_price(),

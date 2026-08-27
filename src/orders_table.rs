@@ -1,6 +1,7 @@
 //! Grille ordres (Orders / Open Orders) — tri par clic sur les en-têtes, UPDATED en premier.
 
 use egui::{Color32, FontId, Id, Ui};
+use trading_models_rust::VenueId;
 
 use crate::data_table::{self, DEFAULT_ROW_HEIGHT};
 use crate::TEXT_SIZES;
@@ -116,6 +117,8 @@ impl OrderGridCells {
 
 #[derive(Clone, Debug)]
 pub struct OrderGridRow {
+    pub venue: VenueId,
+    pub order_id: String,
     pub updated_ms: i64,
     pub limit_px: f64,
     pub avg_px: f64,
@@ -197,6 +200,17 @@ pub fn show_sortable_table_columns(
     sort: &mut OrderTableSort,
     visible_columns: &[&str],
 ) {
+    show_sortable_table_columns_with_menu(ui, table_id, rows, sort, visible_columns, None::<fn(usize, &OrderGridRow)>);
+}
+
+pub fn show_sortable_table_columns_with_menu(
+    ui: &mut Ui,
+    table_id: Id,
+    rows: &[OrderGridRow],
+    sort: &mut OrderTableSort,
+    visible_columns: &[&str],
+    mut on_row_context_menu: Option<impl FnMut(usize, &OrderGridRow)>,
+) {
     if visible_columns.is_empty() {
         return;
     }
@@ -227,7 +241,7 @@ pub fn show_sortable_table_columns(
         },
         |ui| {
             for (index, row) in rows.iter().enumerate() {
-                let _ = data_table::draw_selectable_row(
+                let response = data_table::draw_selectable_row(
                     ui,
                     table_id.with(("row", index)),
                     &columns,
@@ -246,6 +260,15 @@ pub fn show_sortable_table_columns(
                         );
                     },
                 );
+                if let Some(handler) = on_row_context_menu.as_mut() {
+                    let row = &rows[index];
+                    response.context_menu(|ui| {
+                        if ui.button("Détail fees / MIN_SELL…").clicked() {
+                            handler(index, row);
+                            ui.close_menu();
+                        }
+                    });
+                }
             }
         },
     );
