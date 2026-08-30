@@ -106,10 +106,12 @@ pub fn show_sticky_header_table<R>(
 ) -> (TableHeaderEvent, R) {
     let mut header_event = TableHeaderEvent::default();
     let mut body_out: Option<R> = None;
+    let outer_height = ui.available_height();
     ScrollArea::horizontal()
         .id_salt(table_id.with("h_scroll"))
         .auto_shrink([false, false])
         .drag_to_scroll(false)
+        .max_height(outer_height)
         .show(ui, |ui| {
             ui.vertical(|ui| {
                 header_event = with_zero_row_spacing(ui, draw_header);
