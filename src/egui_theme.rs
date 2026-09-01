@@ -1,5 +1,7 @@
 //! Thème egui partagé — une seule apparence fenêtre (sans contour parasite).
 
+use std::sync::atomic::{AtomicU8, Ordering};
+
 use crate::{palette, Rgb, ThemeMode, TradingPalette};
 
 /// Espacement standard stack (publishers + executor).
@@ -7,14 +9,48 @@ pub const ITEM_SPACING: egui::Vec2 = egui::vec2(6.0, 4.0);
 pub const BUTTON_PADDING: egui::Vec2 = egui::vec2(8.0, 4.0);
 pub const CONTENT_INNER_MARGIN: egui::Margin = egui::Margin::same(4);
 
+const THEME_UNKNOWN: u8 = 0;
+const THEME_LIGHT: u8 = 1;
+const THEME_DARK: u8 = 2;
+
+static LAST_APPLIED_THEME: AtomicU8 = AtomicU8::new(THEME_UNKNOWN);
+
 pub fn color(rgb: Rgb) -> egui::Color32 {
     egui::Color32::from_rgb(rgb.r, rgb.g, rgb.b)
 }
 
-pub fn theme_mode(ctx: &egui::Context) -> ThemeMode {
-    match ctx.system_theme().unwrap_or(egui::Theme::Light) {
+fn env_theme_override() -> Option<ThemeMode> {
+    match std::env::var("AL_UI_THEME")
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("dark") => Some(ThemeMode::Dark),
+        Some("light") => Some(ThemeMode::Light),
+        _ => None,
+    }
+}
+
+/// Thème OS via egui uniquement (`AL_UI_THEME` = override explicite).
+pub fn detect_theme_mode(ctx: &egui::Context) -> Option<ThemeMode> {
+    if let Some(mode) = env_theme_override() {
+        return Some(mode);
+    }
+    ctx.system_theme().map(|theme| match theme {
         egui::Theme::Dark => ThemeMode::Dark,
         egui::Theme::Light => ThemeMode::Light,
+    })
+}
+
+pub fn theme_mode(ctx: &egui::Context) -> ThemeMode {
+    detect_theme_mode(ctx).unwrap_or_else(|| theme_mode_ui_from_ctx(ctx))
+}
+
+fn theme_mode_ui_from_ctx(ctx: &egui::Context) -> ThemeMode {
+    if ctx.style().visuals.dark_mode {
+        ThemeMode::Dark
+    } else {
+        ThemeMode::Light
     }
 }
 
@@ -63,12 +99,22 @@ pub fn visuals_from_palette(mode: ThemeMode, trading: TradingPalette) -> egui::V
 }
 
 pub fn apply_system_visuals(ctx: &egui::Context) {
-    let mode = theme_mode(ctx);
-    ctx.set_visuals(visuals_from_palette(mode, palette(mode)));
-    let mut style = (*ctx.style()).clone();
-    style.spacing.item_spacing = ITEM_SPACING;
-    style.spacing.button_padding = BUTTON_PADDING;
-    ctx.set_style(style);
+    let Some(mode) = detect_theme_mode(ctx) else {
+        return;
+    };
+    let encoded = if mode == ThemeMode::Dark {
+        THEME_DARK
+    } else {
+        THEME_LIGHT
+    };
+    let prev = LAST_APPLIED_THEME.swap(encoded, Ordering::Relaxed);
+    if prev != encoded || prev == THEME_UNKNOWN {
+        ctx.set_visuals(visuals_from_palette(mode, palette(mode)));
+        let mut style = (*ctx.style()).clone();
+        style.spacing.item_spacing = ITEM_SPACING;
+        style.spacing.button_padding = BUTTON_PADDING;
+        ctx.set_style(style);
+    }
 }
 
 pub fn central_panel_frame(ctx: &egui::Context) -> egui::Frame {
