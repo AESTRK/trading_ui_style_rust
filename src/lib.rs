@@ -1,5 +1,6 @@
 pub mod app_issues;
 pub mod banner;
+pub mod banner_dismiss;
 pub mod config_window;
 pub mod data_table;
 pub mod egui_theme;
@@ -18,6 +19,9 @@ pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button, s
 pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
 
 pub use banner::FeedBanner;
+pub use banner_dismiss::{
+    draw_dismissible_warning_row, with_dismiss_registry, BannerDismissRegistry,
+};
 pub use app_issues::{
     build_issue_board, connectivity_issue_board, issue_error_title, issue_resolved_title,
     operational_issue_board, show_app_issues, show_classified_connectivity_banner,

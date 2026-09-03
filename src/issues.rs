@@ -1,5 +1,6 @@
 //! Classification erreur / avertissement et journal TTL — partagé entre apps egui.
 
+use crate::banner_dismiss::with_dismiss_registry;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -7,6 +8,7 @@ use std::time::{Duration, Instant};
 pub fn show_issue_panel(
     ctx: &egui::Context,
     panel_id: egui::Id,
+    app_id: &str,
     error_title: &str,
     errors: &[String],
     warning_title: &str,
@@ -15,15 +17,27 @@ pub fn show_issue_panel(
     if errors.is_empty() && warnings.is_empty() {
         return;
     }
-    egui::TopBottomPanel::top(panel_id).show(ctx, |ui| {
-        crate::banner::draw_stacked_issue_banners(
-            ui,
-            ctx,
-            error_title,
-            errors,
-            warning_title,
-            warnings,
-        );
+    with_dismiss_registry(ctx, app_id, |reg| {
+        let error_detail = errors.join(" · ");
+        let warning_detail = warnings.join(" · ");
+        let show_errors = !errors.is_empty() && !reg.is_dismissed_content("error", &error_detail);
+        let show_warnings =
+            !warnings.is_empty() && !reg.is_dismissed_content("warning", &warning_detail);
+        if !show_errors && !show_warnings {
+            return;
+        }
+        egui::TopBottomPanel::top(panel_id).show(ctx, |ui| {
+            crate::banner::draw_stacked_issue_banners(
+                ui,
+                ctx,
+                app_id,
+                error_title,
+                errors,
+                warning_title,
+                warnings,
+                reg,
+            );
+        });
     });
 }
 
@@ -203,8 +217,8 @@ impl StackIssueBoard {
         append_journal_to_board(journal, self, max_per_severity);
     }
 
-    pub fn show_top(&self, ctx: &egui::Context, error_title: &str, warning_title: &str) {
-        self.show_in_panel(ctx, egui::Id::new("stack_issue_banner"), error_title, warning_title);
+    pub fn show_top(&self, ctx: &egui::Context, app_id: &str, error_title: &str, warning_title: &str) {
+        self.show_in_panel(ctx, egui::Id::new("stack_issue_banner"), app_id, error_title, warning_title);
     }
 
     /// Bandeau issues pour fenêtres egui secondaires (viewport dupliqué, etc.).
@@ -212,6 +226,7 @@ impl StackIssueBoard {
         &self,
         ctx: &egui::Context,
         panel_id: impl Into<egui::Id>,
+        app_id: &str,
         error_title: &str,
         warning_title: &str,
     ) {
@@ -221,6 +236,7 @@ impl StackIssueBoard {
         show_issue_panel(
             ctx,
             panel_id.into(),
+            app_id,
             error_title,
             &self.errors,
             warning_title,

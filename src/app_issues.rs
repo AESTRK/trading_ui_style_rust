@@ -2,6 +2,7 @@
 //!
 //! Pattern de référence : `orderbook_rust` (`IssueJournal` + bandeau rouge / orange).
 
+use crate::banner_dismiss::with_dismiss_registry;
 use crate::issues::{IssueJournal, IssueSeverity, StackIssueBoard};
 use std::time::{Duration, Instant};
 
@@ -108,8 +109,19 @@ pub fn show_resolved_banner(
     detail: &str,
 ) {
     let title = issue_resolved_title(app_display_name);
-    egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner")).show(ctx, |ui| {
-        crate::banner::draw_resolved_banner(ui, ctx, &title, detail);
+    with_dismiss_registry(ctx, app_display_name, |reg| {
+        if reg.is_dismissed_content("resolved", detail) {
+            return;
+        }
+        egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner")).show(ctx, |ui| {
+            crate::banner::draw_resolved_banner(
+                ui,
+                ctx,
+                &title,
+                detail,
+                Some((reg, app_display_name)),
+            );
+        });
     });
     ctx.request_repaint_after(Duration::from_millis(33));
 }
@@ -173,6 +185,7 @@ pub fn show_app_issues(ctx: &egui::Context, app_display_name: &str, board: &Stac
     }
     board.show_top(
         ctx,
+        app_display_name,
         &issue_error_title(app_display_name),
         DEFAULT_WARNING_BANNER_TITLE,
     );

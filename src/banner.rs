@@ -1,5 +1,6 @@
 //! Bandeaux de statut empilés (réseau / alertes) — layout 2 lignes partagé entre apps egui.
 
+use crate::banner_dismiss::{draw_banner_close_button, BannerDismissRegistry};
 use crate::{Rgb, TEXT_SIZES};
 use egui::{self, RichText};
 
@@ -109,7 +110,15 @@ pub fn draw_feed_banner(
     ws_stats: Option<&WsDowntimeStats>,
     action: Option<BannerButtonStyle>,
     blink_alert: bool,
+    dismiss: Option<(&mut BannerDismissRegistry, &str, &str)>,
 ) -> bool {
+    let is_dismissed = dismiss
+        .as_ref()
+        .map(|(reg, _, kind)| reg.is_dismissed_content(kind, &banner.detail))
+        .unwrap_or(false);
+    if is_dismissed {
+        return false;
+    }
     let mut clicked = false;
     let fill = if blink_alert {
         alert_bg(ctx, banner.bg)
@@ -137,8 +146,18 @@ pub fn draw_feed_banner(
                         )
                         .wrap(),
                     );
-                    if let Some(btn) = action {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if let Some((reg, app_id, kind)) = dismiss {
+                            draw_banner_close_button(
+                                ui,
+                                reg,
+                                app_id,
+                                kind,
+                                &banner.detail,
+                                false,
+                            );
+                        }
+                        if let Some(btn) = action {
                             if ui
                                 .add(
                                     egui::Button::new(
@@ -152,8 +171,8 @@ pub fn draw_feed_banner(
                             {
                                 clicked = true;
                             }
-                        });
-                    }
+                        }
+                    });
                 });
                 if !metrics.is_empty() || ws_stats.is_some() {
                     ui.horizontal(|ui| {
@@ -179,7 +198,13 @@ pub fn draw_feed_banner(
 }
 
 /// Bandeau vert fixe (problème résolu, sans clignotement).
-pub fn draw_resolved_banner(ui: &mut egui::Ui, ctx: &egui::Context, title: &str, detail: &str) {
+pub fn draw_resolved_banner(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    title: &str,
+    detail: &str,
+    dismiss: Option<(&mut BannerDismissRegistry, &str)>,
+) {
     draw_feed_banner(
         ui,
         ctx,
@@ -192,6 +217,7 @@ pub fn draw_resolved_banner(ui: &mut egui::Ui, ctx: &egui::Context, title: &str,
         None,
         None,
         false,
+        dismiss.map(|(reg, app_id)| (reg, app_id, "resolved")),
     );
 }
 
@@ -199,27 +225,37 @@ pub fn draw_resolved_banner(ui: &mut egui::Ui, ctx: &egui::Context, title: &str,
 pub fn draw_stacked_issue_banners(
     ui: &mut egui::Ui,
     ctx: &egui::Context,
+    app_id: &str,
     error_title: &str,
     errors: &[String],
     warning_title: &str,
     warnings: &[String],
+    reg: &mut BannerDismissRegistry,
 ) {
     if !errors.is_empty() {
-        draw_feed_banner(
-            ui,
-            ctx,
-            &FeedBanner {
-                bg: BANNER_NETWORK_ALERT,
-                title: error_title.to_string(),
-                detail: errors.join(" · "),
-            },
-            &[],
-            None,
-            None,
-            true,
-        );
+        let detail = errors.join(" · ");
+        if !reg.is_dismissed_content("error", &detail) {
+            draw_feed_banner(
+                ui,
+                ctx,
+                &FeedBanner {
+                    bg: BANNER_NETWORK_ALERT,
+                    title: error_title.to_string(),
+                    detail,
+                },
+                &[],
+                None,
+                None,
+                true,
+                Some((reg, app_id, "error")),
+            );
+        }
     }
     if !warnings.is_empty() {
+        let detail = warnings.join(" · ");
+        if reg.is_dismissed_content("warning", &detail) {
+            return;
+        }
         let fill = warning_bg(ctx, BANNER_CARNETS_WARN);
         egui::Frame::new()
             .fill(fill)
@@ -235,12 +271,15 @@ pub fn draw_stacked_issue_banners(
                     );
                     ui.add(
                         egui::Label::new(
-                            RichText::new(warnings.join(" · "))
+                            RichText::new(&detail)
                                 .color(BANNER_TEXT.gamma_multiply(0.92))
                                 .size(TEXT_SIZES.status),
                         )
                         .wrap(),
                     );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        draw_banner_close_button(ui, reg, app_id, "warning", &detail, false);
+                    });
                 });
             });
     }
