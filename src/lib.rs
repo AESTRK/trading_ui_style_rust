@@ -14,6 +14,7 @@ pub mod widgets;
 
 pub use toolbar::{
     show_app_toolbar, toolbar_font, toolbar_readonly_chip, toolbar_row_caption, toolbar_row_status,
+    toolbar_separator,
 };
 
 pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button, side_toggle_button, SideAccent};

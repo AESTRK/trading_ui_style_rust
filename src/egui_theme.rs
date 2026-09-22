@@ -99,9 +99,7 @@ pub fn visuals_from_palette(mode: ThemeMode, trading: TradingPalette) -> egui::V
 }
 
 pub fn apply_system_visuals(ctx: &egui::Context) {
-    let Some(mode) = detect_theme_mode(ctx) else {
-        return;
-    };
+    let mode = detect_theme_mode(ctx).unwrap_or_else(|| theme_mode_ui_from_ctx(ctx));
     let encoded = if mode == ThemeMode::Dark {
         THEME_DARK
     } else {

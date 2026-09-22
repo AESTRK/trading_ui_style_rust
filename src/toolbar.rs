@@ -5,6 +5,22 @@ use eframe::egui::{self, FontId, RichText, Stroke};
 use crate::config_window::{config_manager_toolbar_button, TOOLBAR_CONTROL_HEIGHT};
 use crate::TEXT_SIZES;
 
+/// Hauteur max du panneau toolbar (wrap 2–3 lignes). Sans ça, les `Separator` verticaux
+/// prennent toute la hauteur dispo et le panneau « mange » la fenêtre (régression wrap layout).
+const TOOLBAR_PANEL_MAX_HEIGHT: f32 = 96.0;
+
+/// Séparateur vertical compact — ne pas utiliser `ui.separator()` dans la toolbar horizontale.
+pub fn toolbar_separator(ui: &mut egui::Ui) {
+    let h = TOOLBAR_CONTROL_HEIGHT;
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(6.0, h), egui::Sense::hover());
+    let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+    ui.painter().vline(
+        rect.center().x,
+        rect.top()..=rect.bottom(),
+        stroke,
+    );
+}
+
 /// Panneau top compact : ouvre Config Manager sur cette app, puis contenu app.
 pub fn show_app_toolbar<R>(
     ctx: &egui::Context,
@@ -12,20 +28,22 @@ pub fn show_app_toolbar<R>(
     add_contents: impl FnOnce(&mut egui::Ui) -> R,
 ) -> R {
     let mut out = None;
-    egui::TopBottomPanel::top("toolbar").show(ctx, |ui| {
-        out = Some(
-            ui.with_layout(
-                egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true),
-                |ui| {
+    let panel_id = egui::Id::new(("app_toolbar_v2", crate_app_id));
+    egui::TopBottomPanel::top(panel_id)
+        .resizable(false)
+        .max_height(TOOLBAR_PANEL_MAX_HEIGHT)
+        .show(ctx, |ui| {
+            ui.set_max_height(TOOLBAR_PANEL_MAX_HEIGHT);
+            out = Some(
+                ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing = egui::vec2(8.0, 4.0);
                     config_manager_toolbar_button(ui, crate_app_id);
-                    ui.separator();
+                    toolbar_separator(ui);
                     add_contents(ui)
-                },
-            )
-            .inner,
-        );
-    });
+                })
+                .inner,
+            );
+        });
     out.expect("toolbar panel")
 }
 
