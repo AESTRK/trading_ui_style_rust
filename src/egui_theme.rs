@@ -145,3 +145,21 @@ pub fn inset_frame(fill: egui::Color32) -> egui::Frame {
 pub fn inset_frame_margin(fill: egui::Color32, margin: egui::Margin) -> egui::Frame {
     inset_frame(fill).inner_margin(margin)
 }
+
+/// Assombrit la fenêtre principale et bloque les interactions (popup sur viewport séparé).
+pub fn show_modal_scrim(ctx: &egui::Context) {
+    let rect = ctx
+        .input(|i| i.viewport().inner_rect)
+        .unwrap_or_else(|| ctx.screen_rect());
+    let layer = egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("alphalagoon_modal_scrim"));
+    ctx.layer_painter(layer)
+        .rect_filled(rect, 0.0, egui::Color32::from_black_alpha(175));
+    egui::Area::new(egui::Id::new("alphalagoon_modal_scrim_block"))
+        .order(egui::Order::Tooltip)
+        .interactable(true)
+        .fixed_pos(rect.min)
+        .show(ctx, |ui| {
+            ui.set_min_size(rect.size());
+            ui.allocate_rect(rect, egui::Sense::click());
+        });
+}

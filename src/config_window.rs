@@ -3,10 +3,14 @@
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
-use eframe::egui;
+use eframe::egui::{self, FontId, RichText};
 use serde_json::Value;
 
 use crate::egui_theme;
+use crate::TEXT_SIZES;
+
+/// Hauteur alignée barre IPC / champs read-only (emergency_panel, …).
+pub const TOOLBAR_CONTROL_HEIGHT: f32 = 24.0;
 
 /// Libellé du bouton toolbar → deep link Config Manager.
 pub const MENU_CONFIG_LABEL: &str = "Config Manager";
@@ -73,7 +77,14 @@ pub fn open_config_manager_for_crate(crate_app_id: &str) {
 
 /// Bouton toolbar : ouvre Config Manager sur la section persist de cette app.
 pub fn config_manager_toolbar_button(ui: &mut egui::Ui, crate_app_id: &str) -> bool {
-    if ui.button(MENU_CONFIG_LABEL).clicked() {
+    let response = ui.add(
+        egui::Button::new(
+            RichText::new(MENU_CONFIG_LABEL).font(FontId::proportional(TEXT_SIZES.toolbar)),
+        )
+        .corner_radius(4.0)
+        .min_size(egui::vec2(0.0, TOOLBAR_CONTROL_HEIGHT)),
+    );
+    if response.clicked() {
         open_config_manager_for_crate(crate_app_id);
         true
     } else {
