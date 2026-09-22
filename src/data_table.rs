@@ -109,7 +109,7 @@ pub fn show_sticky_header_table<R>(
     let outer_height = ui.available_height();
     ScrollArea::horizontal()
         .id_salt(table_id.with("h_scroll"))
-        .auto_shrink([false, false])
+        .auto_shrink([false, true])
         .drag_to_scroll(false)
         .max_height(outer_height)
         .show(ui, |ui| {
@@ -119,7 +119,7 @@ pub fn show_sticky_header_table<R>(
                 body_out = Some(
                     ScrollArea::vertical()
                         .id_salt(table_id.with("v_scroll"))
-                        .auto_shrink([false, false])
+                        .auto_shrink([true, false])
                         .drag_to_scroll(false)
                         .max_height(body_height)
                         .show(ui, |ui| with_zero_row_spacing(ui, draw_body))
