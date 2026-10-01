@@ -114,7 +114,11 @@ pub fn show_resolved_banner(
         if reg.is_dismissed_content("resolved", detail) {
             return;
         }
-        egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner")).show(ctx, |ui| {
+        egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner"))
+            .resizable(false)
+            .max_height(crate::banner::ISSUE_BANNER_PANEL_MAX_HEIGHT)
+            .show(ctx, |ui| {
+                ui.set_max_height(crate::banner::ISSUE_BANNER_PANEL_MAX_HEIGHT);
             crate::banner::draw_resolved_banner(
                 ui,
                 ctx,

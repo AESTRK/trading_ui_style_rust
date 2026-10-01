@@ -53,20 +53,24 @@ fn draw_banner_title_detail_row(
 ) {
     // Ne pas utiliser `allocate_ui_with_layout(..., y: 0)` : egui consomme toute la hauteur
     // restante du panneau central → fond bandeau plein écran.
-    ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-        trailing(ui);
-        ui.add_space(4.0);
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            ui.set_max_width(ui.available_width());
-            draw_banner_title(ui, title_mark, title);
-            ui.add(
-                egui::Label::new(
-                    RichText::new(detail)
-                        .color(BANNER_TEXT.gamma_multiply(0.92))
-                        .size(TEXT_SIZES.status),
-                )
-                .wrap(),
-            );
+    ui.horizontal_top(|ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+            trailing(ui);
+            ui.add_space(4.0);
+            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                ui.set_max_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    draw_banner_title(ui, title_mark, title);
+                });
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(detail)
+                            .color(BANNER_TEXT.gamma_multiply(0.92))
+                            .size(TEXT_SIZES.status),
+                    )
+                    .wrap(),
+                );
+            });
         });
     });
 }
@@ -77,6 +81,12 @@ pub const BANNER_RESOLVED: Rgb = Rgb::new(28, 140, 72);
 pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
+
+/// Panneau top harmonisé (erreur + warning empilés). Sans plafond, le fond bandeau remplit la fenêtre.
+pub const ISSUE_BANNER_PANEL_MAX_HEIGHT: f32 = 140.0;
+
+/// Bandeau feed réseau (1–2 lignes + métriques optionnelles) dans le panneau central.
+pub const FEED_BANNER_MAX_HEIGHT: f32 = 120.0;
 
 /// Période clignotement erreur / warning (alternance clair / assombri).
 pub const BLINK_PERIOD_SEC: f64 = 0.55;
@@ -208,11 +218,17 @@ pub fn draw_feed_banner(
     } else {
         rgb_color(banner.bg)
     };
+    let max_h = if ws_stats.is_some() || !metrics.is_empty() {
+        FEED_BANNER_MAX_HEIGHT
+    } else {
+        72.0
+    };
     egui::Frame::new()
         .fill(fill)
         .inner_margin(egui::Margin::symmetric(10, 5))
         .show(ui, |ui| {
-            ui.set_width(ui.available_width());
+            ui.set_max_width(ui.available_width());
+            ui.set_max_height(max_h);
             ui.vertical(|ui| {
                 let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
                 draw_banner_title_detail_row(ui, mark, &banner.title, &banner.detail, |ui| {
@@ -332,7 +348,8 @@ pub fn draw_stacked_issue_banners(
             .fill(fill)
             .inner_margin(egui::Margin::symmetric(10, 5))
             .show(ui, |ui| {
-                ui.set_width(ui.available_width());
+                ui.set_max_width(ui.available_width());
+                ui.set_max_height(72.0);
                 draw_banner_title_detail_row(
                     ui,
                     BannerTitleMark::Warning,
