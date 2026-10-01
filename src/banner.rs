@@ -43,7 +43,7 @@ fn draw_banner_title(ui: &mut egui::Ui, mark: BannerTitleMark, title: &str) {
     );
 }
 
-/// Titre + détail à gauche ; boutons (fermer, action) à droite — largeur texte bornée.
+/// Titre + détail + actions sur une ligne (layout d’origine — hauteur = contenu).
 fn draw_banner_title_detail_row(
     ui: &mut egui::Ui,
     title_mark: BannerTitleMark,
@@ -51,26 +51,19 @@ fn draw_banner_title_detail_row(
     detail: &str,
     trailing: impl FnOnce(&mut egui::Ui),
 ) {
-    // Ne pas utiliser `allocate_ui_with_layout(..., y: 0)` : egui consomme toute la hauteur
-    // restante du panneau central → fond bandeau plein écran.
-    ui.horizontal_top(|ui| {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+    ui.horizontal(|ui| {
+        draw_banner_title(ui, title_mark, title);
+        let detail_label = ui.add(
+            egui::Label::new(
+                RichText::new(detail)
+                    .color(BANNER_TEXT.gamma_multiply(0.92))
+                    .size(TEXT_SIZES.status),
+            )
+            .truncate(),
+        );
+        detail_label.on_hover_text(detail);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             trailing(ui);
-            ui.add_space(4.0);
-            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                ui.set_max_width(ui.available_width());
-                ui.horizontal(|ui| {
-                    draw_banner_title(ui, title_mark, title);
-                });
-                ui.add(
-                    egui::Label::new(
-                        RichText::new(detail)
-                            .color(BANNER_TEXT.gamma_multiply(0.92))
-                            .size(TEXT_SIZES.status),
-                    )
-                    .wrap(),
-                );
-            });
         });
     });
 }
@@ -82,11 +75,8 @@ pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 
-/// Panneau top harmonisé (erreur + warning empilés). Sans plafond, le fond bandeau remplit la fenêtre.
-pub const ISSUE_BANNER_PANEL_MAX_HEIGHT: f32 = 140.0;
-
-/// Bandeau feed réseau (1–2 lignes + métriques optionnelles) dans le panneau central.
-pub const FEED_BANNER_MAX_HEIGHT: f32 = 120.0;
+/// Plafond panneau top issues (2 bandeaux empilés). Le panneau suit la hauteur contenu en dessous.
+pub const ISSUE_BANNER_PANEL_MAX_HEIGHT: f32 = 88.0;
 
 /// Période clignotement erreur / warning (alternance clair / assombri).
 pub const BLINK_PERIOD_SEC: f64 = 0.55;
@@ -218,66 +208,58 @@ pub fn draw_feed_banner(
     } else {
         rgb_color(banner.bg)
     };
-    let max_h = if ws_stats.is_some() || !metrics.is_empty() {
-        FEED_BANNER_MAX_HEIGHT
-    } else {
-        72.0
-    };
     egui::Frame::new()
         .fill(fill)
         .inner_margin(egui::Margin::symmetric(10, 5))
         .show(ui, |ui| {
             ui.set_max_width(ui.available_width());
-            ui.set_max_height(max_h);
-            ui.vertical(|ui| {
-                let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
-                draw_banner_title_detail_row(ui, mark, &banner.title, &banner.detail, |ui| {
-                    if let Some((reg, app_id, kind)) = dismiss {
-                        draw_banner_close_button(
-                            ui,
-                            reg,
-                            app_id,
-                            kind,
-                            &banner.detail,
-                            false,
-                        );
-                        ui.add_space(4.0);
-                    }
-                    if let Some(btn) = action {
-                        if ui
-                            .add(
-                                egui::Button::new(
-                                    RichText::new(&btn.label)
-                                        .color(btn.text_color)
-                                        .size(TEXT_SIZES.toolbar),
-                                )
-                                .fill(btn.fill),
+            let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
+            draw_banner_title_detail_row(ui, mark, &banner.title, &banner.detail, |ui| {
+                if let Some((reg, app_id, kind)) = dismiss {
+                    draw_banner_close_button(
+                        ui,
+                        reg,
+                        app_id,
+                        kind,
+                        &banner.detail,
+                        false,
+                    );
+                    ui.add_space(4.0);
+                }
+                if let Some(btn) = action {
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                RichText::new(&btn.label)
+                                    .color(btn.text_color)
+                                    .size(TEXT_SIZES.toolbar),
                             )
-                            .clicked()
-                        {
-                            clicked = true;
-                        }
+                            .fill(btn.fill),
+                        )
+                        .clicked()
+                    {
+                        clicked = true;
                     }
-                });
-                if !metrics.is_empty() || ws_stats.is_some() {
-                    ui.horizontal(|ui| {
-                        for m in metrics {
-                            ui.label(
-                                RichText::new(format!("{} {}", m.label, m.value))
-                                    .color(BANNER_TEXT)
-                                    .size(TEXT_SIZES.status)
-                                    .monospace(),
-                            );
-                        }
-                        if let Some(st) = ws_stats {
-                            if !metrics.is_empty() {
-                                ui.separator();
-                            }
-                            draw_ws_downtime_stats(ui, st);
-                        }
-                    });
                 }
             });
+            if !metrics.is_empty() || ws_stats.is_some() {
+                ui.horizontal(|ui| {
+                    for m in metrics {
+                        ui.label(
+                            RichText::new(format!("{} {}", m.label, m.value))
+                                .color(BANNER_TEXT)
+                                .size(TEXT_SIZES.status)
+                                .monospace(),
+                        );
+                    }
+                    if let Some(st) = ws_stats {
+                        if !metrics.is_empty() {
+                            ui.separator();
+                        }
+                        draw_ws_downtime_stats(ui, st);
+                    }
+                });
+            }
         });
     clicked
 }
@@ -349,7 +331,6 @@ pub fn draw_stacked_issue_banners(
             .inner_margin(egui::Margin::symmetric(10, 5))
             .show(ui, |ui| {
                 ui.set_max_width(ui.available_width());
-                ui.set_max_height(72.0);
                 draw_banner_title_detail_row(
                     ui,
                     BannerTitleMark::Warning,

@@ -30,7 +30,6 @@ pub fn show_issue_panel(
             .resizable(false)
             .max_height(crate::banner::ISSUE_BANNER_PANEL_MAX_HEIGHT)
             .show(ctx, |ui| {
-                ui.set_max_height(crate::banner::ISSUE_BANNER_PANEL_MAX_HEIGHT);
             crate::banner::draw_stacked_issue_banners(
                 ui,
                 ctx,
