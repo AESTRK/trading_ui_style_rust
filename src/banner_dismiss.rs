@@ -118,22 +118,17 @@ pub fn draw_dismissible_warning_row(
         if reg.is_dismissed_kind(dismiss_kind) {
             return;
         }
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
             draw_banner_close_button(ui, reg, app_id, dismiss_kind, text, true);
             ui.add_space(4.0);
-            let text_w = ui.available_width().max(0.0);
-            ui.allocate_ui_with_layout(
-                Vec2::new(text_w, 0.0),
-                egui::Layout::left_to_right(egui::Align::Center),
-                |ui| {
-                    ui.set_max_width(text_w);
-                    ui.label(
-                        RichText::new(text)
-                            .color(color)
-                            .size(TEXT_SIZES.status),
-                    );
-                },
-            );
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_max_width(ui.available_width());
+                ui.label(
+                    RichText::new(text)
+                        .color(color)
+                        .size(TEXT_SIZES.status),
+                );
+            });
         });
     });
 }

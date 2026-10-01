@@ -51,25 +51,23 @@ fn draw_banner_title_detail_row(
     detail: &str,
     trailing: impl FnOnce(&mut egui::Ui),
 ) {
-    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+    // Ne pas utiliser `allocate_ui_with_layout(..., y: 0)` : egui consomme toute la hauteur
+    // restante du panneau central → fond bandeau plein écran.
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
         trailing(ui);
-        let text_w = ui.available_width().max(0.0);
-        ui.allocate_ui_with_layout(
-            egui::vec2(text_w, 0.0),
-            egui::Layout::left_to_right(egui::Align::Center),
-            |ui| {
-                ui.set_max_width(text_w);
-                draw_banner_title(ui, title_mark, title);
-                ui.add(
-                    egui::Label::new(
-                        RichText::new(detail)
-                            .color(BANNER_TEXT.gamma_multiply(0.92))
-                            .size(TEXT_SIZES.status),
-                    )
-                    .wrap(),
-                );
-            },
-        );
+        ui.add_space(4.0);
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.set_max_width(ui.available_width());
+            draw_banner_title(ui, title_mark, title);
+            ui.add(
+                egui::Label::new(
+                    RichText::new(detail)
+                        .color(BANNER_TEXT.gamma_multiply(0.92))
+                        .size(TEXT_SIZES.status),
+                )
+                .wrap(),
+            );
+        });
     });
 }
 
