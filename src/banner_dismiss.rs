@@ -1,9 +1,10 @@
-//! Fermeture manuelle des bandeaux (✕) avec journalisation tracing.
+//! Fermeture manuelle des bandeaux (croix dessinée) avec journalisation tracing.
 
 use std::collections::HashSet;
 
-use egui::{self, RichText};
+use egui::{self, RichText, Sense, Vec2};
 
+use crate::widgets::draw_x_mark;
 use crate::TEXT_SIZES;
 
 #[derive(Clone, Default)]
@@ -71,7 +72,7 @@ pub fn with_dismiss_registry<R>(
     out
 }
 
-/// Bouton ✕ aligné à droite dans une rangée de bandeau.
+/// Bouton fermer (croix) aligné à droite dans une rangée de bandeau.
 pub fn draw_banner_close_button(
     ui: &mut egui::Ui,
     reg: &mut BannerDismissRegistry,
@@ -80,13 +81,21 @@ pub fn draw_banner_close_button(
     summary: &str,
     stable_kind_only: bool,
 ) {
-    let clicked = ui
-        .add(
-            egui::Button::new(RichText::new("✕").size(TEXT_SIZES.toolbar).color(egui::Color32::WHITE))
-                .min_size(egui::vec2(22.0, 20.0)),
-        )
-        .on_hover_text("Fermer ce bandeau")
-        .clicked();
+    let size = Vec2::new(22.0, 20.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    if ui.is_enabled() {
+        response.clone().on_hover_text("Fermer ce bandeau");
+    }
+    if response.hovered() || response.is_pointer_button_down_on() {
+        ui.painter().rect_filled(
+            rect,
+            3.0,
+            egui::Color32::from_black_alpha(72),
+        );
+    }
+    let mark = egui::Color32::WHITE.gamma_multiply(if response.hovered() { 1.0 } else { 0.92 });
+    draw_x_mark(ui, rect.shrink(5.0), mark);
+    let clicked = response.clicked();
     if clicked {
         if stable_kind_only {
             reg.dismiss_kind(app_id, kind, summary);
@@ -96,7 +105,7 @@ pub fn draw_banner_close_button(
     }
 }
 
-/// Ligne d'avertissement inline (hors bandeau top) avec ✕.
+/// Ligne d'avertissement inline (hors bandeau top) avec bouton fermer.
 pub fn draw_dismissible_warning_row(
     ui: &mut egui::Ui,
     ctx: &egui::Context,
@@ -109,15 +118,22 @@ pub fn draw_dismissible_warning_row(
         if reg.is_dismissed_kind(dismiss_kind) {
             return;
         }
-        ui.horizontal(|ui| {
-            ui.label(
-                RichText::new(text)
-                    .color(color)
-                    .size(TEXT_SIZES.status),
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            draw_banner_close_button(ui, reg, app_id, dismiss_kind, text, true);
+            ui.add_space(4.0);
+            let text_w = ui.available_width().max(0.0);
+            ui.allocate_ui_with_layout(
+                Vec2::new(text_w, 0.0),
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    ui.set_max_width(text_w);
+                    ui.label(
+                        RichText::new(text)
+                            .color(color)
+                            .size(TEXT_SIZES.status),
+                    );
+                },
             );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                draw_banner_close_button(ui, reg, app_id, dismiss_kind, text, true);
-            });
         });
     });
 }

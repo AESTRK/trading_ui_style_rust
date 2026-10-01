@@ -38,6 +38,7 @@ pub fn show_issue_panel(
                 reg,
             );
         });
+        crate::banner::request_repaint_for_issue_blink(ctx);
     });
 }
 
@@ -242,7 +243,6 @@ impl StackIssueBoard {
             warning_title,
             &self.warnings,
         );
-        ctx.request_repaint_after(Duration::from_millis(33));
     }
 }
 
@@ -294,7 +294,10 @@ pub fn classify_issue_severity(text: &str) -> IssueSeverity {
         "IGNORED",
         "DOWN",
         "OFFLINE",
+        " OFF —",
+        " OFF (",
         "MANQUANT",
+        "ZMQ REQUIS",
     ];
     if ERROR_MARKERS.iter().any(|k| u.contains(k)) {
         IssueSeverity::Error
@@ -411,6 +414,16 @@ mod tests {
     fn classify_order_failed_as_error() {
         assert_eq!(
             classify_issue_severity("ORDER_FAILED | venue=kraken | error=disconnected"),
+            IssueSeverity::Error
+        );
+    }
+
+    #[test]
+    fn classify_service_off_banner_as_error() {
+        assert_eq!(
+            classify_issue_severity(
+                "capital_flows_rust OFF — pas de flux capitaux (ZMQ requis)"
+            ),
             IssueSeverity::Error
         );
     }

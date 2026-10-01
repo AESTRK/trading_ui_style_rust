@@ -1,8 +1,77 @@
 //! Bandeaux de statut empilés (réseau / alertes) — layout 2 lignes partagé entre apps egui.
 
 use crate::banner_dismiss::{draw_banner_close_button, BannerDismissRegistry};
+use crate::widgets::{draw_check_mark, draw_filled_dot, draw_pending_ring, draw_x_mark};
 use crate::{Rgb, TEXT_SIZES};
-use egui::{self, RichText};
+use egui::{self, RichText, Sense, Vec2};
+use std::time::Duration;
+
+/// Icône de titre de bandeau — dessinée (pas de glyphe Unicode ■/✓).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BannerTitleMark {
+    Error,
+    Resolved,
+    Warning,
+    Neutral,
+}
+
+fn infer_banner_title_mark(banner: &FeedBanner, blink_alert: bool) -> BannerTitleMark {
+    if banner.bg == BANNER_RESOLVED {
+        BannerTitleMark::Resolved
+    } else if blink_alert {
+        BannerTitleMark::Error
+    } else {
+        BannerTitleMark::Neutral
+    }
+}
+
+fn draw_banner_title(ui: &mut egui::Ui, mark: BannerTitleMark, title: &str) {
+    let icon = Vec2::splat(14.0);
+    let (rect, _) = ui.allocate_exact_size(icon, Sense::hover());
+    match mark {
+        BannerTitleMark::Error => draw_x_mark(ui, rect, BANNER_TEXT),
+        BannerTitleMark::Resolved => draw_check_mark(ui, rect, BANNER_TEXT),
+        BannerTitleMark::Warning => draw_filled_dot(ui, rect, BANNER_TEXT),
+        BannerTitleMark::Neutral => draw_pending_ring(ui, rect, BANNER_TEXT),
+    }
+    ui.add_space(4.0);
+    ui.label(
+        RichText::new(title)
+            .color(BANNER_TEXT)
+            .size(TEXT_SIZES.toolbar)
+            .strong(),
+    );
+}
+
+/// Titre + détail à gauche ; boutons (fermer, action) à droite — largeur texte bornée.
+fn draw_banner_title_detail_row(
+    ui: &mut egui::Ui,
+    title_mark: BannerTitleMark,
+    title: &str,
+    detail: &str,
+    trailing: impl FnOnce(&mut egui::Ui),
+) {
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        trailing(ui);
+        let text_w = ui.available_width().max(0.0);
+        ui.allocate_ui_with_layout(
+            egui::vec2(text_w, 0.0),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.set_max_width(text_w);
+                draw_banner_title(ui, title_mark, title);
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(detail)
+                            .color(BANNER_TEXT.gamma_multiply(0.92))
+                            .size(TEXT_SIZES.status),
+                    )
+                    .wrap(),
+                );
+            },
+        );
+    });
+}
 
 pub const BANNER_NETWORK_OK: Rgb = Rgb::new(23, 92, 211);
 pub const BANNER_NETWORK_ALERT: Rgb = Rgb::new(217, 45, 32);
@@ -11,7 +80,22 @@ pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 
-const BLINK_PERIOD_SEC: f64 = 0.55;
+/// Période clignotement erreur / warning (alternance clair / assombri).
+pub const BLINK_PERIOD_SEC: f64 = 0.55;
+
+/// Délai jusqu'à la prochaine transition de phase du clignotement.
+pub fn duration_until_next_blink_at(time_sec: f64) -> Duration {
+    let phase = time_sec / BLINK_PERIOD_SEC;
+    let next_edge = (phase.floor() + 1.0) * BLINK_PERIOD_SEC;
+    let dt = (next_edge - time_sec).clamp(0.01, BLINK_PERIOD_SEC);
+    Duration::from_secs_f64(dt)
+}
+
+/// Planifie un repaint au prochain changement visuel du clignotement (~2 Hz, pas 30 Hz).
+pub fn request_repaint_for_issue_blink(ctx: &egui::Context) {
+    let t = ctx.input(|i| i.time);
+    ctx.request_repaint_after(duration_until_next_blink_at(t));
+}
 
 pub fn rgb_color(rgb: Rgb) -> egui::Color32 {
     egui::Color32::from_rgb(rgb.r, rgb.g, rgb.b)
@@ -111,6 +195,7 @@ pub fn draw_feed_banner(
     action: Option<BannerButtonStyle>,
     blink_alert: bool,
     dismiss: Option<(&mut BannerDismissRegistry, &str, &str)>,
+    title_mark: Option<BannerTitleMark>,
 ) -> bool {
     let is_dismissed = dismiss
         .as_ref()
@@ -131,48 +216,34 @@ pub fn draw_feed_banner(
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!("■ {}", banner.title))
-                            .color(BANNER_TEXT)
-                            .size(TEXT_SIZES.toolbar)
-                            .strong(),
-                    );
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(&banner.detail)
-                                .color(BANNER_TEXT.gamma_multiply(0.92))
-                                .size(TEXT_SIZES.status),
-                        )
-                        .wrap(),
-                    );
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if let Some((reg, app_id, kind)) = dismiss {
-                            draw_banner_close_button(
-                                ui,
-                                reg,
-                                app_id,
-                                kind,
-                                &banner.detail,
-                                false,
-                            );
-                        }
-                        if let Some(btn) = action {
-                            if ui
-                                .add(
-                                    egui::Button::new(
-                                        RichText::new(&btn.label)
-                                            .color(btn.text_color)
-                                            .size(TEXT_SIZES.toolbar),
-                                    )
-                                    .fill(btn.fill),
+                let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
+                draw_banner_title_detail_row(ui, mark, &banner.title, &banner.detail, |ui| {
+                    if let Some((reg, app_id, kind)) = dismiss {
+                        draw_banner_close_button(
+                            ui,
+                            reg,
+                            app_id,
+                            kind,
+                            &banner.detail,
+                            false,
+                        );
+                        ui.add_space(4.0);
+                    }
+                    if let Some(btn) = action {
+                        if ui
+                            .add(
+                                egui::Button::new(
+                                    RichText::new(&btn.label)
+                                        .color(btn.text_color)
+                                        .size(TEXT_SIZES.toolbar),
                                 )
-                                .clicked()
-                            {
-                                clicked = true;
-                            }
+                                .fill(btn.fill),
+                            )
+                            .clicked()
+                        {
+                            clicked = true;
                         }
-                    });
+                    }
                 });
                 if !metrics.is_empty() || ws_stats.is_some() {
                     ui.horizontal(|ui| {
@@ -218,6 +289,7 @@ pub fn draw_resolved_banner(
         None,
         false,
         dismiss.map(|(reg, app_id)| (reg, app_id, "resolved")),
+        Some(BannerTitleMark::Resolved),
     );
 }
 
@@ -248,6 +320,7 @@ pub fn draw_stacked_issue_banners(
                 None,
                 true,
                 Some((reg, app_id, "error")),
+                Some(BannerTitleMark::Error),
             );
         }
     }
@@ -262,25 +335,15 @@ pub fn draw_stacked_issue_banners(
             .inner_margin(egui::Margin::symmetric(10, 5))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!("■ {}", warning_title))
-                            .color(BANNER_TEXT)
-                            .size(TEXT_SIZES.toolbar)
-                            .strong(),
-                    );
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(&detail)
-                                .color(BANNER_TEXT.gamma_multiply(0.92))
-                                .size(TEXT_SIZES.status),
-                        )
-                        .wrap(),
-                    );
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                draw_banner_title_detail_row(
+                    ui,
+                    BannerTitleMark::Warning,
+                    warning_title,
+                    &detail,
+                    |ui| {
                         draw_banner_close_button(ui, reg, app_id, "warning", &detail, false);
-                    });
-                });
+                    },
+                );
             });
     }
 }
@@ -295,12 +358,7 @@ pub fn draw_secondary_banner(ui: &mut egui::Ui, banner: &FeedBanner, subline: Op
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!("■ {}", banner.title))
-                            .color(BANNER_TEXT)
-                            .size(TEXT_SIZES.toolbar)
-                            .strong(),
-                    );
+                    draw_banner_title(ui, BannerTitleMark::Neutral, &banner.title);
                     ui.add(
                         egui::Label::new(
                             RichText::new(&banner.detail)
@@ -319,4 +377,19 @@ pub fn draw_secondary_banner(ui: &mut egui::Ui, banner: &FeedBanner, subline: Op
                 }
             });
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blink_repaint_targets_phase_edges() {
+        let d0 = duration_until_next_blink_at(0.0);
+        assert!(d0.as_secs_f64() > 0.0 && d0.as_secs_f64() <= BLINK_PERIOD_SEC);
+        let d_mid = duration_until_next_blink_at(0.2);
+        assert!((d_mid.as_secs_f64() - 0.35).abs() < 0.02);
+        let d_edge = duration_until_next_blink_at(0.55);
+        assert!((d_edge.as_secs_f64() - BLINK_PERIOD_SEC).abs() < 0.02);
+    }
 }

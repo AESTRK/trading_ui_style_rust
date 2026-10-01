@@ -10,7 +10,8 @@ pub const DEFAULT_ISSUE_TTL: Duration = Duration::from_secs(45);
 pub const DEFAULT_MAX_ISSUE_RECORDS: usize = 16;
 pub const DEFAULT_MAX_BANNER_ISSUES: usize = 6;
 pub const DEFAULT_WARNING_BANNER_TITLE: &str = "AVERTISSEMENT";
-pub const DEFAULT_RESOLVED_BANNER_SECS: f64 = 4.0;
+/// Durée du bandeau vert **RÉSOLU** après disparition des erreurs (secondes).
+pub const DEFAULT_RESOLVED_BANNER_SECS: f64 = 10.0;
 pub const DEFAULT_RESOLVED_BANNER_DETAIL: &str = "Le problème signalé est corrigé.";
 
 /// Journal opérationnel par application (`ORDERBOOK`, `MANUAL_ORDERS`, …).
@@ -123,7 +124,16 @@ pub fn show_resolved_banner(
             );
         });
     });
-    ctx.request_repaint_after(Duration::from_millis(33));
+}
+
+fn format_board_errors(board: &StackIssueBoard) -> String {
+    board
+        .errors()
+        .iter()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 /// Mémorise les erreurs actives et affiche un flash vert quand elles disparaissent.
@@ -131,6 +141,8 @@ pub fn show_resolved_banner(
 pub struct IssueBannerController {
     had_errors: bool,
     resolved_until: Option<Instant>,
+    /// Dernières lignes d'erreur affichées (reprises telles quelles dans le bandeau vert).
+    last_error_banner_text: String,
 }
 
 impl IssueBannerController {
@@ -151,16 +163,40 @@ impl IssueBannerController {
         resolved_detail: &str,
     ) {
         self.on_board(board);
-        if self.showing_resolved() {
-            show_resolved_banner(ctx, app_display_name, resolved_detail);
+        if board.has_errors() {
+            show_app_issues(ctx, app_display_name, board);
             return;
         }
-        show_app_issues(ctx, app_display_name, board);
+        if self.showing_resolved() {
+            let detail = self.resolved_banner_detail(resolved_detail);
+            show_resolved_banner(ctx, app_display_name, &detail);
+            if let Some(until) = self.resolved_until {
+                let rem = until.saturating_duration_since(Instant::now());
+                if rem > Duration::ZERO {
+                    ctx.request_repaint_after(rem);
+                }
+            }
+            return;
+        }
+        if !board.is_empty() {
+            show_app_issues(ctx, app_display_name, board);
+        }
+    }
+
+    pub(crate) fn resolved_banner_detail(&self, fallback: &str) -> String {
+        if self.last_error_banner_text.is_empty() {
+            fallback.trim().to_string()
+        } else {
+            self.last_error_banner_text.clone()
+        }
     }
 
     fn on_board(&mut self, board: &StackIssueBoard) {
         let errors_active = board.has_errors();
-        if self.had_errors && !errors_active {
+        if errors_active {
+            self.resolved_until = None;
+            self.last_error_banner_text = format_board_errors(board);
+        } else if self.had_errors {
             self.resolved_until =
                 Some(Instant::now() + Duration::from_secs_f64(DEFAULT_RESOLVED_BANNER_SECS));
         }
@@ -189,7 +225,6 @@ pub fn show_app_issues(ctx: &egui::Context, app_display_name: &str, board: &Stac
         &issue_error_title(app_display_name),
         DEFAULT_WARNING_BANNER_TITLE,
     );
-    ctx.request_repaint_after(Duration::from_millis(33));
 }
 
 /// Fragments connectivité (plusieurs sources) → bandeau classifié.
@@ -213,7 +248,37 @@ pub fn operational_issue_board(connectivity_text: &str, operational_error: &str)
     board
 }
 
-/// Connectivité + fragments ` · ` classifiés (apps sans journal local).
+/// Texte vert affiché après disparition des erreurs (harmonisé stack).
+pub fn default_resolved_detail(app_display_name: &str) -> String {
+    format!(
+        "{} — plus d'erreur bloquante.",
+        app_display_name.trim()
+    )
+}
+
+/// Bandeau rouge / orange / vert **RÉSOLU** — pattern standard toutes apps egui.
+pub fn show_harmonized_issue_banner(
+    controller: &mut IssueBannerController,
+    ctx: &egui::Context,
+    app_display_name: &str,
+    board: &StackIssueBoard,
+) {
+    let detail = default_resolved_detail(app_display_name);
+    controller.show_with_detail(ctx, app_display_name, board, &detail);
+}
+
+/// Connectivité hub (texte ` · `) + cycle vert résolu.
+pub fn harmonized_connectivity_banner(
+    controller: &mut IssueBannerController,
+    ctx: &egui::Context,
+    app_display_name: &str,
+    combined_text: &str,
+) {
+    let board = StackIssueBoard::from_combined_text(combined_text);
+    show_harmonized_issue_banner(controller, ctx, app_display_name, &board);
+}
+
+/// Ancien helper sans flash vert — préférer [`harmonized_connectivity_banner`].
 pub fn show_classified_connectivity_banner(
     ctx: &egui::Context,
     app_display_name: &str,
@@ -268,5 +333,24 @@ mod tests {
         board = StackIssueBoard::new();
         ctrl.on_board(&board);
         assert!(ctrl.showing_resolved());
+
+        board.push_error("retour en erreur");
+        ctrl.on_board(&board);
+        assert!(!ctrl.showing_resolved());
+    }
+
+    #[test]
+    fn issue_banner_controller_keeps_last_error_for_resolved_detail() {
+        let mut ctrl = IssueBannerController::default();
+        let mut board = StackIssueBoard::new();
+        board.push_error("capital_flows_rust OFF — ZMQ requis");
+        ctrl.on_board(&board);
+        board = StackIssueBoard::new();
+        ctrl.on_board(&board);
+        assert!(ctrl.showing_resolved());
+        assert_eq!(
+            ctrl.resolved_banner_detail("fallback"),
+            "capital_flows_rust OFF — ZMQ requis"
+        );
     }
 }

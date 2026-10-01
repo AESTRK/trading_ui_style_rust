@@ -27,7 +27,8 @@ pub use banner_dismiss::{
 };
 pub use app_issues::{
     build_issue_board, connectivity_issue_board, issue_error_title, issue_resolved_title,
-    operational_issue_board, show_app_issues, show_classified_connectivity_banner,
+    default_resolved_detail, harmonized_connectivity_banner, operational_issue_board,
+    show_app_issues, show_classified_connectivity_banner, show_harmonized_issue_banner,
     show_resolved_banner, AppIssueReporter, IssueBannerController, DEFAULT_ISSUE_TTL,
     DEFAULT_MAX_BANNER_ISSUES, DEFAULT_MAX_ISSUE_RECORDS, DEFAULT_RESOLVED_BANNER_DETAIL,
     DEFAULT_RESOLVED_BANNER_SECS, DEFAULT_WARNING_BANNER_TITLE,
