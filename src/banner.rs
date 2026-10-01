@@ -75,8 +75,19 @@ pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 
-/// Plafond panneau top issues (2 bandeaux empilés). Le panneau suit la hauteur contenu en dessous.
-pub const ISSUE_BANNER_PANEL_MAX_HEIGHT: f32 = 88.0;
+/// Hauteur fixe d’une bande issue (une ligne titre+détail).
+pub const ISSUE_BANNER_ROW_HEIGHT: f32 = 38.0;
+
+/// Hauteur panneau top pour N bandeaux visibles (erreur / warning empilés).
+pub fn issue_panel_exact_height(visible_strip_count: u8) -> f32 {
+    let n = visible_strip_count.max(1) as f32;
+    n * ISSUE_BANNER_ROW_HEIGHT + (n - 1.0).max(0.0) * 2.0
+}
+
+fn clamp_issue_strip_ui(ui: &mut egui::Ui) {
+    ui.set_min_height(ISSUE_BANNER_ROW_HEIGHT);
+    ui.set_max_height(ISSUE_BANNER_ROW_HEIGHT);
+}
 
 /// Période clignotement erreur / warning (alternance clair / assombri).
 pub const BLINK_PERIOD_SEC: f64 = 0.55;
@@ -208,11 +219,15 @@ pub fn draw_feed_banner(
     } else {
         rgb_color(banner.bg)
     };
+    let compact_strip = metrics.is_empty() && ws_stats.is_none();
     egui::Frame::new()
         .fill(fill)
         .inner_margin(egui::Margin::symmetric(10, 5))
         .show(ui, |ui| {
             ui.set_max_width(ui.available_width());
+            if compact_strip {
+                clamp_issue_strip_ui(ui);
+            }
             let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
             draw_banner_title_detail_row(ui, mark, &banner.title, &banner.detail, |ui| {
                 if let Some((reg, app_id, kind)) = dismiss {
@@ -331,6 +346,7 @@ pub fn draw_stacked_issue_banners(
             .inner_margin(egui::Margin::symmetric(10, 5))
             .show(ui, |ui| {
                 ui.set_max_width(ui.available_width());
+                clamp_issue_strip_ui(ui);
                 draw_banner_title_detail_row(
                     ui,
                     BannerTitleMark::Warning,
@@ -387,5 +403,11 @@ mod tests {
         assert!((d_mid.as_secs_f64() - 0.35).abs() < 0.02);
         let d_edge = duration_until_next_blink_at(0.55);
         assert!((d_edge.as_secs_f64() - BLINK_PERIOD_SEC).abs() < 0.02);
+    }
+
+    #[test]
+    fn issue_panel_height_scales_with_strip_count() {
+        assert!((issue_panel_exact_height(1) - ISSUE_BANNER_ROW_HEIGHT).abs() < 0.01);
+        assert!(issue_panel_exact_height(2) > issue_panel_exact_height(1));
     }
 }

@@ -26,9 +26,17 @@ pub fn show_issue_panel(
         if !show_errors && !show_warnings {
             return;
         }
+        let mut strips = 0u8;
+        if show_errors {
+            strips += 1;
+        }
+        if show_warnings {
+            strips += 1;
+        }
+        let panel_h = crate::banner::issue_panel_exact_height(strips);
         egui::TopBottomPanel::top(panel_id)
             .resizable(false)
-            .max_height(crate::banner::ISSUE_BANNER_PANEL_MAX_HEIGHT)
+            .exact_height(panel_h)
             .show(ctx, |ui| {
             crate::banner::draw_stacked_issue_banners(
                 ui,

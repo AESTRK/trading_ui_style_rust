@@ -116,7 +116,7 @@ pub fn show_resolved_banner(
         }
         egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner"))
             .resizable(false)
-            .max_height(crate::banner::ISSUE_BANNER_PANEL_MAX_HEIGHT)
+            .exact_height(crate::banner::issue_panel_exact_height(1))
             .show(ctx, |ui| {
             crate::banner::draw_resolved_banner(
                 ui,
