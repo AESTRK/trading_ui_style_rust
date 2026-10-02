@@ -41,7 +41,11 @@ pub fn run_native(
     creator: eframe::AppCreator<'_>,
 ) -> eframe::Result {
     app_runtime_rust::ensure_config_persist_relay();
-    eframe::run_native(app_name, prepare_native_options(options), creator)
+    let wrapped: eframe::AppCreator<'_> = Box::new(move |cc| {
+        crate::egui_theme::apply_system_visuals(&cc.egui_ctx);
+        creator(cc)
+    });
+    eframe::run_native(app_name, prepare_native_options(options), wrapped)
 }
 
 /// Compatibilité — préférer [`prepare_native_options`] ou [`run_native`].

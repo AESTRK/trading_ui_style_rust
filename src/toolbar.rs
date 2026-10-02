@@ -31,6 +31,8 @@ pub fn show_app_toolbar<R>(
     let panel_id = egui::Id::new(("app_toolbar_v2", crate_app_id));
     egui::TopBottomPanel::top(panel_id)
         .resizable(false)
+        .show_separator_line(false)
+        .frame(crate::egui_theme::stack_top_panel_frame(ctx))
         .max_height(TOOLBAR_PANEL_MAX_HEIGHT)
         .show(ctx, |ui| {
             ui.set_max_height(TOOLBAR_PANEL_MAX_HEIGHT);

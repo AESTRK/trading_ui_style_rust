@@ -116,6 +116,8 @@ pub fn show_resolved_banner(
         }
         egui::TopBottomPanel::top(egui::Id::new("stack_issue_resolved_banner"))
             .resizable(false)
+            .show_separator_line(false)
+            .frame(crate::egui_theme::stack_top_panel_frame(ctx))
             .exact_height(crate::banner::issue_panel_exact_height(1))
             .show(ctx, |ui| {
             crate::banner::draw_resolved_banner(
@@ -125,6 +127,8 @@ pub fn show_resolved_banner(
                 detail,
                 Some((reg, app_display_name)),
             );
+            crate::banner::finish_issue_top_panel(ui);
+            crate::egui_theme::fill_top_panel_remainder(ui);
         });
     });
 }
@@ -236,7 +240,16 @@ pub fn connectivity_issue_board(
 ) -> StackIssueBoard {
     let mut board = StackIssueBoard::new();
     for fragment in fragments {
-        board.push_fragment(fragment.into());
+        let text = fragment.into();
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.contains('·') {
+            board.extend_fragments(crate::issues::split_banner_fragments(trimmed));
+        } else {
+            board.push_fragment(trimmed);
+        }
     }
     board
 }

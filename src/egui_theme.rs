@@ -42,8 +42,9 @@ pub fn detect_theme_mode(ctx: &egui::Context) -> Option<ThemeMode> {
     })
 }
 
+/// Thème effectif — préfère l’OS / `AL_UI_THEME` ; sinon clair (évite le flash noir egui au boot).
 pub fn theme_mode(ctx: &egui::Context) -> ThemeMode {
-    detect_theme_mode(ctx).unwrap_or_else(|| theme_mode_ui_from_ctx(ctx))
+    detect_theme_mode(ctx).unwrap_or(ThemeMode::Light)
 }
 
 fn theme_mode_ui_from_ctx(ctx: &egui::Context) -> ThemeMode {
@@ -99,20 +100,42 @@ pub fn visuals_from_palette(mode: ThemeMode, trading: TradingPalette) -> egui::V
 }
 
 pub fn apply_system_visuals(ctx: &egui::Context) {
-    let mode = detect_theme_mode(ctx).unwrap_or_else(|| theme_mode_ui_from_ctx(ctx));
+    let mode = theme_mode(ctx);
     let encoded = if mode == ThemeMode::Dark {
         THEME_DARK
     } else {
         THEME_LIGHT
     };
-    let prev = LAST_APPLIED_THEME.swap(encoded, Ordering::Relaxed);
+    let prev = LAST_APPLIED_THEME.load(Ordering::Relaxed);
     if prev != encoded || prev == THEME_UNKNOWN {
+        LAST_APPLIED_THEME.store(encoded, Ordering::Relaxed);
         ctx.set_visuals(visuals_from_palette(mode, palette(mode)));
         let mut style = (*ctx.style()).clone();
         style.spacing.item_spacing = ITEM_SPACING;
         style.spacing.button_padding = BUTTON_PADDING;
         ctx.set_style(style);
     }
+}
+
+/// Comble un `TopBottomPanel` à hauteur fixe — sinon egui réserve moins que `exact_height` et le fond OS (noir) apparaît.
+pub fn fill_top_panel_remainder(ui: &mut egui::Ui) {
+    let h = ui.available_height();
+    if h < 0.5 {
+        return;
+    }
+    let w = ui.available_width().max(1.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(w, h), egui::Sense::hover());
+    ui.painter()
+        .rect_filled(rect, 0.0, ui.visuals().panel_fill);
+}
+
+/// Cadre panneau top (toolbar, bandeaux) — sans marge egui par défaut ni séparateur.
+pub fn stack_top_panel_frame(ctx: &egui::Context) -> egui::Frame {
+    let fill = color(palette(theme_mode(ctx)).panel_fill);
+    egui::Frame::new()
+        .fill(fill)
+        .inner_margin(0.0)
+        .stroke(egui::Stroke::NONE)
 }
 
 pub fn central_panel_frame(ctx: &egui::Context) -> egui::Frame {

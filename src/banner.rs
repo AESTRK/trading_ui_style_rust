@@ -1,6 +1,7 @@
 //! Bandeaux de statut empilés (réseau / alertes) — layout 2 lignes partagé entre apps egui.
 
 use crate::banner_dismiss::{draw_banner_close_button, BannerDismissRegistry};
+use crate::config_window::TOOLBAR_CONTROL_HEIGHT;
 use crate::widgets::{draw_check_mark, draw_filled_dot, draw_pending_ring, draw_x_mark};
 use crate::{Rgb, TEXT_SIZES};
 use egui::{self, RichText, Sense, Vec2};
@@ -49,6 +50,7 @@ fn draw_banner_title_detail_row(
     title_mark: BannerTitleMark,
     title: &str,
     detail: &str,
+    detail_hover_text: bool,
     trailing: impl FnOnce(&mut egui::Ui),
 ) {
     ui.horizontal(|ui| {
@@ -61,7 +63,9 @@ fn draw_banner_title_detail_row(
             )
             .truncate(),
         );
-        detail_label.on_hover_text(detail);
+        if detail_hover_text {
+            detail_label.on_hover_text(detail);
+        }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             trailing(ui);
         });
@@ -75,13 +79,31 @@ pub const BANNER_CARNETS_WARN: Rgb = Rgb::new(220, 145, 0);
 pub const BANNER_NEUTRAL: Rgb = Rgb::new(52, 64, 84);
 pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 
-/// Hauteur fixe d’une bande issue (une ligne titre+détail).
-pub const ISSUE_BANNER_ROW_HEIGHT: f32 = 38.0;
+/// Hauteur ligne bandeau issue — alignée toolbar (`Config Manager`, …).
+pub const ISSUE_BANNER_ROW_HEIGHT: f32 = TOOLBAR_CONTROL_HEIGHT;
 
-/// Hauteur panneau top pour N bandeaux visibles (erreur / warning empilés).
+/// Espace entre le bas du bandeau et la barre d’outils (fond `panel_fill`).
+pub const ISSUE_BANNER_TO_TOOLBAR_GAP: f32 = 4.0;
+
+/// Marge interne des bandeaux issue une ligne (erreur / warning / résolu).
+pub fn issue_strip_inner_margin() -> egui::Margin {
+    egui::Margin::symmetric(10, 3)
+}
+
+/// Hauteur peinte d’une bande (contenu + padding).
+pub fn issue_banner_strip_outer_height() -> f32 {
+    ISSUE_BANNER_ROW_HEIGHT + issue_strip_inner_margin().sum().y
+}
+
+/// Hauteur panneau top issue (bandes + interligne + marge toolbar).
 pub fn issue_panel_exact_height(visible_strip_count: u8) -> f32 {
     let n = visible_strip_count.max(1) as f32;
-    n * ISSUE_BANNER_ROW_HEIGHT + (n - 1.0).max(0.0) * 2.0
+    n * issue_banner_strip_outer_height() + (n - 1.0).max(0.0) * 2.0 + ISSUE_BANNER_TO_TOOLBAR_GAP
+}
+
+/// Respiration sous les bandes dans le panneau top (ne pas étirer le bandeau coloré).
+pub fn finish_issue_top_panel(ui: &mut egui::Ui) {
+    ui.add_space(ISSUE_BANNER_TO_TOOLBAR_GAP);
 }
 
 fn clamp_issue_strip_ui(ui: &mut egui::Ui) {
@@ -205,6 +227,7 @@ pub fn draw_feed_banner(
     blink_alert: bool,
     dismiss: Option<(&mut BannerDismissRegistry, &str, &str)>,
     title_mark: Option<BannerTitleMark>,
+    detail_hover_text: bool,
 ) -> bool {
     let is_dismissed = dismiss
         .as_ref()
@@ -220,16 +243,27 @@ pub fn draw_feed_banner(
         rgb_color(banner.bg)
     };
     let compact_strip = metrics.is_empty() && ws_stats.is_none();
+    let inner_margin = if compact_strip {
+        issue_strip_inner_margin()
+    } else {
+        egui::Margin::symmetric(10, 5)
+    };
     egui::Frame::new()
         .fill(fill)
-        .inner_margin(egui::Margin::symmetric(10, 5))
+        .inner_margin(inner_margin)
         .show(ui, |ui| {
             ui.set_max_width(ui.available_width());
             if compact_strip {
                 clamp_issue_strip_ui(ui);
             }
             let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
-            draw_banner_title_detail_row(ui, mark, &banner.title, &banner.detail, |ui| {
+            draw_banner_title_detail_row(
+                ui,
+                mark,
+                &banner.title,
+                &banner.detail,
+                detail_hover_text,
+                |ui| {
                 if let Some((reg, app_id, kind)) = dismiss {
                     draw_banner_close_button(
                         ui,
@@ -256,7 +290,8 @@ pub fn draw_feed_banner(
                         clicked = true;
                     }
                 }
-            });
+            },
+            );
             if !metrics.is_empty() || ws_stats.is_some() {
                 ui.horizontal(|ui| {
                     for m in metrics {
@@ -301,6 +336,7 @@ pub fn draw_resolved_banner(
         false,
         dismiss.map(|(reg, app_id)| (reg, app_id, "resolved")),
         Some(BannerTitleMark::Resolved),
+        false,
     );
 }
 
@@ -332,6 +368,7 @@ pub fn draw_stacked_issue_banners(
                 true,
                 Some((reg, app_id, "error")),
                 Some(BannerTitleMark::Error),
+                false,
             );
         }
     }
@@ -343,7 +380,7 @@ pub fn draw_stacked_issue_banners(
         let fill = warning_bg(ctx, BANNER_CARNETS_WARN);
         egui::Frame::new()
             .fill(fill)
-            .inner_margin(egui::Margin::symmetric(10, 5))
+            .inner_margin(issue_strip_inner_margin())
             .show(ui, |ui| {
                 ui.set_max_width(ui.available_width());
                 clamp_issue_strip_ui(ui);
@@ -352,6 +389,7 @@ pub fn draw_stacked_issue_banners(
                     BannerTitleMark::Warning,
                     warning_title,
                     &detail,
+                    false,
                     |ui| {
                         draw_banner_close_button(ui, reg, app_id, "warning", &detail, false);
                     },
@@ -362,7 +400,6 @@ pub fn draw_stacked_issue_banners(
 
 /// Bandeau secondaire (ex. carnets silencieux, API absente) sous le bandeau réseau.
 pub fn draw_secondary_banner(ui: &mut egui::Ui, banner: &FeedBanner, subline: Option<&str>) {
-    ui.add_space(2.0);
     egui::Frame::new()
         .fill(rgb_color(banner.bg))
         .inner_margin(egui::Margin::symmetric(10, 4))
@@ -407,7 +444,8 @@ mod tests {
 
     #[test]
     fn issue_panel_height_scales_with_strip_count() {
-        assert!((issue_panel_exact_height(1) - ISSUE_BANNER_ROW_HEIGHT).abs() < 0.01);
+        let one = issue_banner_strip_outer_height() + ISSUE_BANNER_TO_TOOLBAR_GAP;
+        assert!((issue_panel_exact_height(1) - one).abs() < 0.01);
         assert!(issue_panel_exact_height(2) > issue_panel_exact_height(1));
     }
 }

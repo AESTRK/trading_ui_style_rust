@@ -36,8 +36,11 @@ pub fn show_issue_panel(
         let panel_h = crate::banner::issue_panel_exact_height(strips);
         egui::TopBottomPanel::top(panel_id)
             .resizable(false)
+            .show_separator_line(false)
+            .frame(crate::egui_theme::stack_top_panel_frame(ctx))
             .exact_height(panel_h)
             .show(ctx, |ui| {
+            ui.spacing_mut().item_spacing.y = 0.0;
             crate::banner::draw_stacked_issue_banners(
                 ui,
                 ctx,
@@ -48,6 +51,8 @@ pub fn show_issue_panel(
                 warnings,
                 reg,
             );
+            crate::banner::finish_issue_top_panel(ui);
+            crate::egui_theme::fill_top_panel_remainder(ui);
         });
         crate::banner::request_repaint_for_issue_blink(ctx);
     });
@@ -245,15 +250,89 @@ impl StackIssueBoard {
         if self.is_empty() {
             return;
         }
+        let mut errors = self.errors.clone();
+        let mut warnings = self.warnings.clone();
+        compact_issue_lists_for_display(&mut errors, &mut warnings);
         show_issue_panel(
             ctx,
             panel_id.into(),
             app_id,
             error_title,
-            &self.errors,
+            &errors,
             warning_title,
-            &self.warnings,
+            &warnings,
         );
+    }
+}
+
+/// Retire les avertissements déjà couverts par une erreur et fusionne les fragments hub.
+pub fn compact_issue_lists_for_display(errors: &mut Vec<String>, warnings: &mut Vec<String>) {
+    if warnings.is_empty() && errors.len() <= 1 {
+        return;
+    }
+    warnings.retain(|w| {
+        let w = w.trim();
+        if w.is_empty() {
+            return false;
+        }
+        !errors
+            .iter()
+            .any(|e| issue_text_redundant_with(w, e.as_str()))
+    });
+    merge_connectivity_hub_fragments(errors, warnings);
+}
+
+fn issue_text_redundant_with(warning: &str, error: &str) -> bool {
+    let w = warning.trim();
+    let e = error.trim();
+    if w.is_empty() || e.is_empty() {
+        return false;
+    }
+    if e.contains(w) || w.contains(e) {
+        return true;
+    }
+    let wu = w.to_uppercase();
+    let eu = e.to_uppercase();
+    if wu.contains("NO CREDENTIALS") && eu.contains("NO CREDENTIALS") {
+        return true;
+    }
+    if wu.contains("CONNECTIVIT") && eu.contains("CONNECTIVIT") {
+        return true;
+    }
+    false
+}
+
+fn is_connectivity_hub_fragment(text: &str) -> bool {
+    let u = text.to_uppercase();
+    u.contains("CONNECTIVIT")
+        || u.contains("CONNECTIVITY HUB")
+        || u.contains("BUDGET RÉSEAU")
+        || u.contains("BUDGET RESEAU")
+        || u.contains("NO CREDENTIALS")
+        || u.contains("CREDENTIALS FOR PROBE")
+}
+
+fn merge_connectivity_hub_fragments(errors: &mut Vec<String>, warnings: &mut Vec<String>) {
+    let total = errors.len() + warnings.len();
+    if total < 2 {
+        return;
+    }
+    let all_hub = errors.iter().all(|s| is_connectivity_hub_fragment(s))
+        && warnings.iter().all(|s| is_connectivity_hub_fragment(s));
+    if !all_hub {
+        return;
+    }
+    let merged = errors
+        .iter()
+        .chain(warnings.iter())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    errors.clear();
+    warnings.clear();
+    if !merged.is_empty() {
+        push_unique_line(errors, merged);
     }
 }
 
@@ -437,5 +516,20 @@ mod tests {
             ),
             IssueSeverity::Error
         );
+    }
+
+    #[test]
+    fn compact_merges_hub_connectivity_and_budget_into_one_error() {
+        let mut errors = vec![
+            "BUDGET RÉSEAU BINANCE — binance_errors_2".to_string(),
+        ];
+        let mut warnings = vec![
+            "CONNECTIVITÉ DÉGRADÉE — REST signé : no credentials".to_string(),
+        ];
+        compact_issue_lists_for_display(&mut errors, &mut warnings);
+        assert!(warnings.is_empty());
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("BUDGET"));
+        assert!(errors[0].contains("CONNECTIVIT"));
     }
 }
