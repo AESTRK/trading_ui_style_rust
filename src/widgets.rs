@@ -104,7 +104,7 @@ pub fn draw_pending_ring(ui: &Ui, rect: Rect, stroke_color: Color32) {
     ui.painter().circle_stroke(
         rect.center(),
         radius,
-        Stroke::new(1.4, stroke_color),
+        Stroke::new(1.4_f32, stroke_color),
     );
 }
 

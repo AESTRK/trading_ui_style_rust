@@ -241,6 +241,79 @@ pub fn connectivity_issue_board(
     board
 }
 
+/// Seuil par défaut : alerte si PUB ZMQ absente ou trop vieille alors que des symboles sont actifs.
+pub const DEFAULT_FEED_ZMQ_STALL_MS: i64 = 45_000;
+
+/// Publishers marché : hub KO mais lignes live → warning orange, pas erreur rouge bloquante.
+pub fn feed_publisher_issue_board(
+    hub_ok: bool,
+    hub_banner_text: &str,
+    live_row_count: usize,
+) -> StackIssueBoard {
+    let text = hub_banner_text.trim();
+    if hub_ok || text.is_empty() {
+        return StackIssueBoard::new();
+    }
+    if live_row_count > 0 {
+        let mut board = StackIssueBoard::new();
+        board.push_warning(format!(
+            "CONNECTIVITÉ HUB — {text} (données feed locales actives)"
+        ));
+        return board;
+    }
+    connectivity_issue_board([text.to_string()])
+}
+
+/// Hub OK mais feed local muet — distingue connectivité exchange vs publisher métier.
+pub fn append_feed_local_freshness_warnings(
+    board: &mut StackIssueBoard,
+    hub_ok: bool,
+    tracked_symbols: usize,
+    live_rows: usize,
+    zmq_publish_idle_ms: Option<i64>,
+    stall_ms: i64,
+) {
+    if tracked_symbols == 0 || live_rows > 0 {
+        return;
+    }
+    let stall_ms = stall_ms.max(5_000);
+    let message = match zmq_publish_idle_ms {
+        None if hub_ok => Some(format!(
+            "FEED LOCAL — hub OK mais 0/{tracked_symbols} symboles live (aucune publication ZMQ encore)"
+        )),
+        None => None,
+        Some(idle) if idle >= stall_ms => Some(format!(
+            "FEED LOCAL — hub {} — dernière PUB ZMQ il y a {idle} ms ({tracked_symbols} symboles, 0 live)",
+            if hub_ok { "OK" } else { "KO" }
+        )),
+        _ => None,
+    };
+    if let Some(msg) = message {
+        board.push_warning(msg);
+    }
+}
+
+/// Hub + freshness ZMQ pour publishers snapshot / microstructure.
+pub fn feed_publisher_issue_board_with_freshness(
+    hub_ok: bool,
+    hub_banner_text: &str,
+    tracked_symbols: usize,
+    live_row_count: usize,
+    zmq_publish_idle_ms: Option<i64>,
+    stall_ms: i64,
+) -> StackIssueBoard {
+    let mut board = feed_publisher_issue_board(hub_ok, hub_banner_text, live_row_count);
+    append_feed_local_freshness_warnings(
+        &mut board,
+        hub_ok,
+        tracked_symbols,
+        live_row_count,
+        zmq_publish_idle_ms,
+        stall_ms,
+    );
+    board
+}
+
 /// Connectivité hub + erreur opérationnelle locale (sync REST, persistance, …).
 pub fn operational_issue_board(connectivity_text: &str, operational_error: &str) -> StackIssueBoard {
     let mut board = connectivity_issue_board([connectivity_text]);

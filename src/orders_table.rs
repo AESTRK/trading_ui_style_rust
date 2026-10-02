@@ -166,7 +166,6 @@ pub fn sort_rows(rows: &mut [OrderGridRow], sort: &OrderTableSort) {
 }
 
 fn compare_rows(a: &OrderGridRow, b: &OrderGridRow, col: &str) -> std::cmp::Ordering {
-    use std::cmp::Ordering;
     match col {
         "updated" => a.updated_ms.cmp(&b.updated_ms),
         "limit_px" => f64_cmp(a.limit_px, b.limit_px),

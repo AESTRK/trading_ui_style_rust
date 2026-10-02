@@ -71,7 +71,7 @@ pub fn toolbar_readonly_chip(
         false,
         egui::Button::new(label)
             .fill(fill)
-            .stroke(Stroke::new(1.0, stroke))
+            .stroke(Stroke::new(1.0_f32, stroke))
             .corner_radius(4.0)
             .min_size(egui::vec2(width, TOOLBAR_CONTROL_HEIGHT)),
     )
