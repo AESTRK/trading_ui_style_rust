@@ -117,6 +117,17 @@ pub fn apply_system_visuals(ctx: &egui::Context) {
     }
 }
 
+/// Fond unifié panneaux top (toolbar + bandeaux) — palette stack, pas le clear viewport (noir).
+pub fn top_stack_fill(ctx: &egui::Context) -> egui::Color32 {
+    color(palette(theme_mode(ctx)).panel_fill)
+}
+
+/// Peint tout le panneau top (évite une bande noire si un `add_space` laisse le viewport visible).
+pub fn paint_top_stack_panel_bg(ui: &mut egui::Ui) {
+    let fill = top_stack_fill(ui.ctx());
+    ui.painter().rect_filled(ui.max_rect(), 0.0, fill);
+}
+
 /// Comble un `TopBottomPanel` à hauteur fixe — sinon egui réserve moins que `exact_height` et le fond OS (noir) apparaît.
 pub fn fill_top_panel_remainder(ui: &mut egui::Ui) {
     let h = ui.available_height();
@@ -125,13 +136,12 @@ pub fn fill_top_panel_remainder(ui: &mut egui::Ui) {
     }
     let w = ui.available_width().max(1.0);
     let (rect, _) = ui.allocate_exact_size(egui::vec2(w, h), egui::Sense::hover());
-    ui.painter()
-        .rect_filled(rect, 0.0, ui.visuals().panel_fill);
+    ui.painter().rect_filled(rect, 0.0, top_stack_fill(ui.ctx()));
 }
 
 /// Cadre panneau top (toolbar, bandeaux) — sans marge egui par défaut ni séparateur.
 pub fn stack_top_panel_frame(ctx: &egui::Context) -> egui::Frame {
-    let fill = color(palette(theme_mode(ctx)).panel_fill);
+    let fill = top_stack_fill(ctx);
     egui::Frame::new()
         .fill(fill)
         .inner_margin(0.0)

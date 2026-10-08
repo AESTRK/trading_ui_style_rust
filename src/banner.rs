@@ -82,8 +82,8 @@ pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 /// Hauteur ligne bandeau issue — alignée toolbar (`Config Manager`, …).
 pub const ISSUE_BANNER_ROW_HEIGHT: f32 = TOOLBAR_CONTROL_HEIGHT;
 
-/// Espace entre le bas du bandeau et la barre d’outils (fond `panel_fill`).
-pub const ISSUE_BANNER_TO_TOOLBAR_GAP: f32 = 4.0;
+/// Espace sous la bande colorée (peint en `panel_fill`, pas transparent).
+pub const ISSUE_BANNER_TO_TOOLBAR_GAP: f32 = 2.0;
 
 /// Marge interne des bandeaux issue une ligne (erreur / warning / résolu).
 pub fn issue_strip_inner_margin() -> egui::Margin {
@@ -101,9 +101,16 @@ pub fn issue_panel_exact_height(visible_strip_count: u8) -> f32 {
     n * issue_banner_strip_outer_height() + (n - 1.0).max(0.0) * 2.0 + ISSUE_BANNER_TO_TOOLBAR_GAP
 }
 
-/// Respiration sous les bandes dans le panneau top (ne pas étirer le bandeau coloré).
+/// Respiration sous les bandes — rectangle peint (un `add_space` seul laisse le viewport noir en mode clair).
 pub fn finish_issue_top_panel(ui: &mut egui::Ui) {
-    ui.add_space(ISSUE_BANNER_TO_TOOLBAR_GAP);
+    let h = ISSUE_BANNER_TO_TOOLBAR_GAP;
+    if h < 0.5 {
+        return;
+    }
+    let w = ui.available_width().max(1.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(w, h), egui::Sense::hover());
+    let fill = crate::egui_theme::top_stack_fill(ui.ctx());
+    ui.painter().rect_filled(rect, 0.0, fill);
 }
 
 fn clamp_issue_strip_ui(ui: &mut egui::Ui) {

@@ -35,6 +35,7 @@ pub fn show_app_toolbar<R>(
         .frame(crate::egui_theme::stack_top_panel_frame(ctx))
         .max_height(TOOLBAR_PANEL_MAX_HEIGHT)
         .show(ctx, |ui| {
+            crate::egui_theme::paint_top_stack_panel_bg(ui);
             ui.set_max_height(TOOLBAR_PANEL_MAX_HEIGHT);
             out = Some(
                 ui.horizontal_wrapped(|ui| {

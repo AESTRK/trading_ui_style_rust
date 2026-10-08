@@ -40,6 +40,7 @@ pub fn show_issue_panel(
             .frame(crate::egui_theme::stack_top_panel_frame(ctx))
             .exact_height(panel_h)
             .show(ctx, |ui| {
+            crate::egui_theme::paint_top_stack_panel_bg(ui);
             ui.spacing_mut().item_spacing.y = 0.0;
             crate::banner::draw_stacked_issue_banners(
                 ui,
