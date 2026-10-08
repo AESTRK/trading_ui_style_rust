@@ -31,7 +31,7 @@ pub use app_issues::{
     feed_publisher_issue_board, feed_publisher_issue_board_with_freshness,
     harmonized_connectivity_banner, DEFAULT_FEED_ZMQ_STALL_MS,
     operational_issue_board,
-    show_app_issues, show_classified_connectivity_banner, show_harmonized_issue_banner,
+    show_app_issues, show_harmonized_issue_banner,
     show_resolved_banner, AppIssueReporter, IssueBannerController, DEFAULT_ISSUE_TTL,
     DEFAULT_MAX_BANNER_ISSUES, DEFAULT_MAX_ISSUE_RECORDS, DEFAULT_RESOLVED_BANNER_DETAIL,
     DEFAULT_RESOLVED_BANNER_SECS, DEFAULT_WARNING_BANNER_TITLE,

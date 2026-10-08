@@ -129,7 +129,6 @@ pub fn show_resolved_banner(
                 detail,
                 Some((reg, app_display_name)),
             );
-            crate::banner::finish_issue_top_panel(ui);
             crate::egui_theme::fill_top_panel_remainder(ui);
         });
     });
@@ -367,19 +366,6 @@ pub fn harmonized_connectivity_banner(
 ) {
     let board = StackIssueBoard::from_combined_text(combined_text);
     show_harmonized_issue_banner(controller, ctx, app_display_name, &board);
-}
-
-/// Ancien helper sans flash vert — préférer [`harmonized_connectivity_banner`].
-pub fn show_classified_connectivity_banner(
-    ctx: &egui::Context,
-    app_display_name: &str,
-    combined_text: &str,
-) {
-    show_app_issues(
-        ctx,
-        app_display_name,
-        &StackIssueBoard::from_combined_text(combined_text),
-    );
 }
 
 /// Fragments connectivité + entrées du journal TTL.

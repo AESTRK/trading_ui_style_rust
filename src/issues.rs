@@ -52,7 +52,6 @@ pub fn show_issue_panel(
                 warnings,
                 reg,
             );
-            crate::banner::finish_issue_top_panel(ui);
             crate::egui_theme::fill_top_panel_remainder(ui);
         });
         crate::banner::request_repaint_for_issue_blink(ctx);
@@ -233,6 +232,16 @@ impl StackIssueBoard {
 
     pub fn merge_journal(&mut self, journal: &IssueJournal, max_per_severity: usize) {
         append_journal_to_board(journal, self, max_per_severity);
+    }
+
+    /// Fusionne un autre bandeau (ex. connectivité hub) sans second panneau top egui.
+    pub fn merge_board(&mut self, other: &StackIssueBoard) {
+        for line in other.errors() {
+            self.push_error(line.clone());
+        }
+        for line in other.warnings() {
+            self.push_warning(line.clone());
+        }
     }
 
     pub fn show_top(&self, ctx: &egui::Context, app_id: &str, error_title: &str, warning_title: &str) {

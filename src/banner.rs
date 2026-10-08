@@ -44,7 +44,7 @@ fn draw_banner_title(ui: &mut egui::Ui, mark: BannerTitleMark, title: &str) {
     );
 }
 
-/// Titre + détail + actions sur une ligne (layout d’origine — hauteur = contenu).
+/// Titre + détail (tronqué) + actions — ligne pleine largeur, contenu centré verticalement.
 fn draw_banner_title_detail_row(
     ui: &mut egui::Ui,
     title_mark: BannerTitleMark,
@@ -53,23 +53,46 @@ fn draw_banner_title_detail_row(
     detail_hover_text: bool,
     trailing: impl FnOnce(&mut egui::Ui),
 ) {
-    ui.horizontal(|ui| {
-        draw_banner_title(ui, title_mark, title);
-        let detail_label = ui.add(
-            egui::Label::new(
-                RichText::new(detail)
-                    .color(BANNER_TEXT.gamma_multiply(0.92))
-                    .size(TEXT_SIZES.status),
-            )
-            .truncate(),
-        );
-        if detail_hover_text {
-            detail_label.on_hover_text(detail);
-        }
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            trailing(ui);
+    let row_h = ISSUE_BANNER_ROW_HEIGHT;
+    allocate_banner_row(ui, row_h, |ui| {
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        trailing(ui);
+        let body_w = ui.available_width().max(0.0);
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.set_max_width(body_w);
+            ui.set_min_height(row_h);
+            ui.set_max_height(row_h);
+            draw_banner_title(ui, title_mark, title);
+            ui.add_space(4.0);
+            let detail_label = ui.add(
+                egui::Label::new(
+                    RichText::new(detail)
+                        .color(BANNER_TEXT.gamma_multiply(0.92))
+                        .size(TEXT_SIZES.status),
+                )
+                .truncate()
+                .wrap_mode(egui::TextWrapMode::Truncate),
+            );
+            if detail_hover_text || detail.len() > 48 {
+                detail_label.on_hover_text(detail);
+            }
         });
     });
+    });
+}
+
+/// Réserve une bande verticale fixe dans le bandeau (évite le chevauchement des lignes).
+fn allocate_banner_row(ui: &mut egui::Ui, height: f32, content: impl FnOnce(&mut egui::Ui)) {
+    let width = ui.available_width().max(1.0);
+    ui.allocate_ui_with_layout(
+        egui::vec2(width, height),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.set_min_height(height);
+            ui.set_max_height(height);
+            content(ui);
+        },
+    );
 }
 
 pub const BANNER_NETWORK_OK: Rgb = Rgb::new(23, 92, 211);
@@ -82,12 +105,9 @@ pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 /// Hauteur ligne bandeau issue — alignée toolbar (`Config Manager`, …).
 pub const ISSUE_BANNER_ROW_HEIGHT: f32 = TOOLBAR_CONTROL_HEIGHT;
 
-/// Espace sous la bande colorée avant la toolbar (0 = bandeau et toolbar contigus).
-pub const ISSUE_BANNER_TO_TOOLBAR_GAP: f32 = 0.0;
-
-/// Marge interne horizontale des bandeaux issue une ligne (pas de marge verticale — centrage via layout).
+/// Marge interne bandeaux issue (horizontal + léger padding vertical pour centrage visuel).
 pub fn issue_strip_inner_margin() -> egui::Margin {
-    egui::Margin::symmetric(10, 0)
+    egui::Margin::symmetric(10, 2)
 }
 
 /// Hauteur peinte d’une bande (contenu + padding).
@@ -98,34 +118,35 @@ pub fn issue_banner_strip_outer_height() -> f32 {
 /// Hauteur panneau top issue (bandes + interligne + marge toolbar).
 pub fn issue_panel_exact_height(visible_strip_count: u8) -> f32 {
     let n = visible_strip_count.max(1) as f32;
-    n * issue_banner_strip_outer_height() + (n - 1.0).max(0.0) * 2.0 + ISSUE_BANNER_TO_TOOLBAR_GAP
+    n * issue_banner_strip_outer_height() + (n - 1.0).max(0.0) * 2.0
 }
 
-/// Respiration sous les bandes — rectangle peint (un `add_space` seul laisse le viewport noir en mode clair).
-pub fn finish_issue_top_panel(ui: &mut egui::Ui) {
-    let h = ISSUE_BANNER_TO_TOOLBAR_GAP;
-    if h < 0.5 {
-        return;
-    }
-    let w = ui.available_width().max(1.0);
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(w, h), egui::Sense::hover());
-    let fill = crate::egui_theme::top_stack_fill(ui.ctx());
-    ui.painter().rect_filled(rect, 0.0, fill);
+fn clamp_issue_strip_ui(ui: &mut egui::Ui) {
+    ui.set_min_height(ISSUE_BANNER_ROW_HEIGHT);
+    ui.set_max_height(ISSUE_BANNER_ROW_HEIGHT);
 }
 
-/// Bandeau issue une ligne : hauteur fixe, contenu centré verticalement dans la couleur.
-fn draw_compact_issue_strip(ui: &mut egui::Ui, fill: egui::Color32, draw_row: impl FnOnce(&mut egui::Ui)) {
-    let width = ui.available_width();
-    let height = issue_banner_strip_outer_height();
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
-    ui.painter().rect_filled(rect, 0.0, fill);
-    let inner = issue_strip_inner_margin().shrink_rect(rect);
-    let mut child = ui.new_child(
-        egui::UiBuilder::new()
-            .max_rect(inner)
-            .layout(egui::Layout::left_to_right(egui::Align::Center)),
-    );
-    draw_row(&mut child);
+/// Bande colorée + contenu — `Frame` réserve la hauteur dans le layout parent.
+fn draw_banner_frame(
+    ui: &mut egui::Ui,
+    fill: egui::Color32,
+    inner_margin: egui::Margin,
+    compact_single_row: bool,
+    draw_body: impl FnOnce(&mut egui::Ui),
+) {
+    egui::Frame::new()
+        .fill(fill)
+        .inner_margin(inner_margin)
+        .show(ui, |ui| {
+            ui.set_max_width(ui.available_width());
+            if compact_single_row {
+                ui.spacing_mut().item_spacing.y = 0.0;
+                clamp_issue_strip_ui(ui);
+            } else {
+                ui.spacing_mut().item_spacing.y = 4.0;
+            }
+            draw_body(ui);
+        });
 }
 
 /// Prépare le panneau top issue (pas d’espace non peint entre widgets).
@@ -270,25 +291,17 @@ pub fn draw_feed_banner(
     } else {
         egui::Margin::symmetric(10, 5)
     };
-    if compact_strip {
+    draw_banner_frame(ui, fill, inner_margin, compact_strip, |ui| {
         let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
-        draw_compact_issue_strip(ui, fill, |ui| {
-            draw_banner_title_detail_row(
-                ui,
-                mark,
-                &banner.title,
-                &banner.detail,
-                detail_hover_text,
-                |ui| {
+        draw_banner_title_detail_row(
+            ui,
+            mark,
+            &banner.title,
+            &banner.detail,
+            detail_hover_text,
+            |ui| {
                 if let Some((reg, app_id, kind)) = dismiss {
-                    draw_banner_close_button(
-                        ui,
-                        reg,
-                        app_id,
-                        kind,
-                        &banner.detail,
-                        false,
-                    );
+                    draw_banner_close_button(ui, reg, app_id, kind, &banner.detail, false);
                     ui.add_space(4.0);
                 }
                 if let Some(btn) = action {
@@ -307,71 +320,28 @@ pub fn draw_feed_banner(
                     }
                 }
             },
-            );
-        });
-    } else {
-        egui::Frame::new()
-            .fill(fill)
-            .inner_margin(inner_margin)
-            .show(ui, |ui| {
-                ui.set_max_width(ui.available_width());
-                let mark =
-                    title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
-                draw_banner_title_detail_row(
-                    ui,
-                    mark,
-                    &banner.title,
-                    &banner.detail,
-                    detail_hover_text,
-                    |ui| {
-                        if let Some((reg, app_id, kind)) = dismiss {
-                            draw_banner_close_button(
-                                ui,
-                                reg,
-                                app_id,
-                                kind,
-                                &banner.detail,
-                                false,
-                            );
-                            ui.add_space(4.0);
+        );
+        if !metrics.is_empty() || ws_stats.is_some() {
+            allocate_banner_row(ui, ISSUE_BANNER_ROW_HEIGHT, |ui| {
+                ui.horizontal(|ui| {
+                    for m in metrics {
+                        ui.label(
+                            RichText::new(format!("{} {}", m.label, m.value))
+                                .color(BANNER_TEXT)
+                                .size(TEXT_SIZES.status)
+                                .monospace(),
+                        );
+                    }
+                    if let Some(st) = ws_stats {
+                        if !metrics.is_empty() {
+                            ui.separator();
                         }
-                        if let Some(btn) = action {
-                            if ui
-                                .add(
-                                    egui::Button::new(
-                                        RichText::new(&btn.label)
-                                            .color(btn.text_color)
-                                            .size(TEXT_SIZES.toolbar),
-                                    )
-                                    .fill(btn.fill),
-                                )
-                                .clicked()
-                            {
-                                clicked = true;
-                            }
-                        }
-                    },
-                );
-                if !metrics.is_empty() || ws_stats.is_some() {
-                    ui.horizontal(|ui| {
-                        for m in metrics {
-                            ui.label(
-                                RichText::new(format!("{} {}", m.label, m.value))
-                                    .color(BANNER_TEXT)
-                                    .size(TEXT_SIZES.status)
-                                    .monospace(),
-                            );
-                        }
-                        if let Some(st) = ws_stats {
-                            if !metrics.is_empty() {
-                                ui.separator();
-                            }
-                            draw_ws_downtime_stats(ui, st);
-                        }
-                    });
-                }
+                        draw_ws_downtime_stats(ui, st);
+                    }
+                });
             });
-    }
+        }
+    });
     clicked
 }
 
@@ -439,7 +409,7 @@ pub fn draw_stacked_issue_banners(
             return;
         }
         let fill = warning_bg(ctx, BANNER_CARNETS_WARN);
-        draw_compact_issue_strip(ui, fill, |ui| {
+        draw_banner_frame(ui, fill, issue_strip_inner_margin(), true, |ui| {
             draw_banner_title_detail_row(
                 ui,
                 BannerTitleMark::Warning,
@@ -500,7 +470,7 @@ mod tests {
 
     #[test]
     fn issue_panel_height_scales_with_strip_count() {
-        let one = issue_banner_strip_outer_height() + ISSUE_BANNER_TO_TOOLBAR_GAP;
+        let one = issue_banner_strip_outer_height();
         assert!((issue_panel_exact_height(1) - one).abs() < 0.01);
         assert!(issue_panel_exact_height(2) > issue_panel_exact_height(1));
     }

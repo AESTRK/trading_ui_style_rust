@@ -47,14 +47,6 @@ pub fn theme_mode(ctx: &egui::Context) -> ThemeMode {
     detect_theme_mode(ctx).unwrap_or(ThemeMode::Light)
 }
 
-fn theme_mode_ui_from_ctx(ctx: &egui::Context) -> ThemeMode {
-    if ctx.style().visuals.dark_mode {
-        ThemeMode::Dark
-    } else {
-        ThemeMode::Light
-    }
-}
-
 pub fn theme_mode_ui(ui: &egui::Ui) -> ThemeMode {
     if ui.visuals().dark_mode {
         ThemeMode::Dark

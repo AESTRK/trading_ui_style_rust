@@ -48,7 +48,6 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 | `apply_launcher_hide_dock!` | Compatibilité — préférer `run_native` |
 | `banner::draw_feed_banner` | Bandeau réseau 2 lignes (titre, métriques, stats WS, bouton) |
 | `banner::draw_secondary_banner` | Bandeau secondaire (carnets, API absente, connectivité) |
-| `banner::finish_issue_top_panel` | Marge sous bandes issues — rectangle peint (`top_stack_fill`) pour éviter une bande noire en mode clair |
 | `banner::WsDowntimeStats` | Dernière coupure / cumul / déconnexions |
 | `app_issues` / `issues` | Bandeaux classifiés (connectivité, persist, …) avec `paint_top_stack_panel_bg` |
 | `egui_theme::paint_top_stack_panel_bg` | Fond unifié derrière toolbar + bandeaux en haut de fenêtre |
