@@ -82,12 +82,12 @@ pub const BANNER_TEXT: egui::Color32 = egui::Color32::WHITE;
 /// Hauteur ligne bandeau issue — alignée toolbar (`Config Manager`, …).
 pub const ISSUE_BANNER_ROW_HEIGHT: f32 = TOOLBAR_CONTROL_HEIGHT;
 
-/// Espace sous la bande colorée (peint en `panel_fill`, pas transparent).
-pub const ISSUE_BANNER_TO_TOOLBAR_GAP: f32 = 2.0;
+/// Espace sous la bande colorée avant la toolbar (0 = bandeau et toolbar contigus).
+pub const ISSUE_BANNER_TO_TOOLBAR_GAP: f32 = 0.0;
 
-/// Marge interne des bandeaux issue une ligne (erreur / warning / résolu).
+/// Marge interne horizontale des bandeaux issue une ligne (pas de marge verticale — centrage via layout).
 pub fn issue_strip_inner_margin() -> egui::Margin {
-    egui::Margin::symmetric(10, 3)
+    egui::Margin::symmetric(10, 0)
 }
 
 /// Hauteur peinte d’une bande (contenu + padding).
@@ -113,9 +113,24 @@ pub fn finish_issue_top_panel(ui: &mut egui::Ui) {
     ui.painter().rect_filled(rect, 0.0, fill);
 }
 
-fn clamp_issue_strip_ui(ui: &mut egui::Ui) {
-    ui.set_min_height(ISSUE_BANNER_ROW_HEIGHT);
-    ui.set_max_height(ISSUE_BANNER_ROW_HEIGHT);
+/// Bandeau issue une ligne : hauteur fixe, contenu centré verticalement dans la couleur.
+fn draw_compact_issue_strip(ui: &mut egui::Ui, fill: egui::Color32, draw_row: impl FnOnce(&mut egui::Ui)) {
+    let width = ui.available_width();
+    let height = issue_banner_strip_outer_height();
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    ui.painter().rect_filled(rect, 0.0, fill);
+    let inner = issue_strip_inner_margin().shrink_rect(rect);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(inner)
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    draw_row(&mut child);
+}
+
+/// Prépare le panneau top issue (pas d’espace non peint entre widgets).
+pub fn prepare_issue_top_panel(ui: &mut egui::Ui) {
+    ui.spacing_mut().item_spacing.y = 0.0;
 }
 
 /// Période clignotement erreur / warning (alternance clair / assombri).
@@ -255,15 +270,9 @@ pub fn draw_feed_banner(
     } else {
         egui::Margin::symmetric(10, 5)
     };
-    egui::Frame::new()
-        .fill(fill)
-        .inner_margin(inner_margin)
-        .show(ui, |ui| {
-            ui.set_max_width(ui.available_width());
-            if compact_strip {
-                clamp_issue_strip_ui(ui);
-            }
-            let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
+    if compact_strip {
+        let mark = title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
+        draw_compact_issue_strip(ui, fill, |ui| {
             draw_banner_title_detail_row(
                 ui,
                 mark,
@@ -299,25 +308,70 @@ pub fn draw_feed_banner(
                 }
             },
             );
-            if !metrics.is_empty() || ws_stats.is_some() {
-                ui.horizontal(|ui| {
-                    for m in metrics {
-                        ui.label(
-                            RichText::new(format!("{} {}", m.label, m.value))
-                                .color(BANNER_TEXT)
-                                .size(TEXT_SIZES.status)
-                                .monospace(),
-                        );
-                    }
-                    if let Some(st) = ws_stats {
-                        if !metrics.is_empty() {
-                            ui.separator();
-                        }
-                        draw_ws_downtime_stats(ui, st);
-                    }
-                });
-            }
         });
+    } else {
+        egui::Frame::new()
+            .fill(fill)
+            .inner_margin(inner_margin)
+            .show(ui, |ui| {
+                ui.set_max_width(ui.available_width());
+                let mark =
+                    title_mark.unwrap_or_else(|| infer_banner_title_mark(banner, blink_alert));
+                draw_banner_title_detail_row(
+                    ui,
+                    mark,
+                    &banner.title,
+                    &banner.detail,
+                    detail_hover_text,
+                    |ui| {
+                        if let Some((reg, app_id, kind)) = dismiss {
+                            draw_banner_close_button(
+                                ui,
+                                reg,
+                                app_id,
+                                kind,
+                                &banner.detail,
+                                false,
+                            );
+                            ui.add_space(4.0);
+                        }
+                        if let Some(btn) = action {
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new(&btn.label)
+                                            .color(btn.text_color)
+                                            .size(TEXT_SIZES.toolbar),
+                                    )
+                                    .fill(btn.fill),
+                                )
+                                .clicked()
+                            {
+                                clicked = true;
+                            }
+                        }
+                    },
+                );
+                if !metrics.is_empty() || ws_stats.is_some() {
+                    ui.horizontal(|ui| {
+                        for m in metrics {
+                            ui.label(
+                                RichText::new(format!("{} {}", m.label, m.value))
+                                    .color(BANNER_TEXT)
+                                    .size(TEXT_SIZES.status)
+                                    .monospace(),
+                            );
+                        }
+                        if let Some(st) = ws_stats {
+                            if !metrics.is_empty() {
+                                ui.separator();
+                            }
+                            draw_ws_downtime_stats(ui, st);
+                        }
+                    });
+                }
+            });
+    }
     clicked
 }
 
@@ -385,23 +439,18 @@ pub fn draw_stacked_issue_banners(
             return;
         }
         let fill = warning_bg(ctx, BANNER_CARNETS_WARN);
-        egui::Frame::new()
-            .fill(fill)
-            .inner_margin(issue_strip_inner_margin())
-            .show(ui, |ui| {
-                ui.set_max_width(ui.available_width());
-                clamp_issue_strip_ui(ui);
-                draw_banner_title_detail_row(
-                    ui,
-                    BannerTitleMark::Warning,
-                    warning_title,
-                    &detail,
-                    false,
-                    |ui| {
-                        draw_banner_close_button(ui, reg, app_id, "warning", &detail, false);
-                    },
-                );
-            });
+        draw_compact_issue_strip(ui, fill, |ui| {
+            draw_banner_title_detail_row(
+                ui,
+                BannerTitleMark::Warning,
+                warning_title,
+                &detail,
+                false,
+                |ui| {
+                    draw_banner_close_button(ui, reg, app_id, "warning", &detail, false);
+                },
+            );
+        });
     }
 }
 

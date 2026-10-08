@@ -121,6 +121,7 @@ pub fn show_resolved_banner(
             .exact_height(crate::banner::issue_panel_exact_height(1))
             .show(ctx, |ui| {
             crate::egui_theme::paint_top_stack_panel_bg(ui);
+            crate::banner::prepare_issue_top_panel(ui);
             crate::banner::draw_resolved_banner(
                 ui,
                 ctx,
