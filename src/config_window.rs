@@ -375,9 +375,6 @@ pub fn sync_config_persist_with_for(
     reload: impl FnOnce(&ConfigPersistSync),
 ) {
     if let Some(sync) = poll_config_persist_sync_for(ctx, app_id, env_keys) {
-        if let Some(ref persist) = sync.persist {
-            app_runtime_rust::apply_persist_env(persist);
-        }
         reload(&sync);
     }
 }
@@ -390,7 +387,6 @@ pub fn sync_config_persist_for(
     reload: impl FnOnce(Option<Value>),
 ) {
     if let Some(persist) = poll_config_persist_for(ctx, app_id, env_keys) {
-        app_runtime_rust::apply_persist_env(&persist);
         reload(Some(persist));
     }
 }
