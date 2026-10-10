@@ -19,7 +19,10 @@ pub use toolbar::{
 
 pub use widgets::{checkbox, checkbox_readonly, checkbox_row, selection_button, side_toggle_button, SideAccent};
 
-pub use launcher::{hide_dock_requested, prepare_native_options, run_native};
+pub use launcher::{
+    hide_dock_requested, poll_start_gui_reveal, prepare_native_options, run_native,
+    start_gui_hidden_requested,
+};
 
 pub use banner::FeedBanner;
 pub use banner_dismiss::{

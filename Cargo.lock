@@ -3526,6 +3526,7 @@ dependencies = [
  "app_runtime_rust",
  "eframe",
  "egui",
+ "libc",
  "serde_json",
  "tracing",
  "trading_models_rust",
