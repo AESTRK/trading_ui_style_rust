@@ -42,9 +42,9 @@ Bibliothèque de style commune consommée par les applications Rust (`orderbook_
 | `TEXT_SIZES` | Tailles de police standardisées |
 | `format_pct`, `format_eur_compact`, `format_volume_compact` | Formatters |
 | `pct_rgb` | Couleur conditionnelle selon variation |
-| `hide_dock_requested` | Lit la variable d'environnement du launcher |
+| `hide_dock_requested` | Lit `ALPHA_LAGOON_HIDE_DOCK` (icône Dock) |
 | `prepare_native_options` | Applique le masquage Dock sur `eframe::NativeOptions` |
-| `run_native` | `eframe::run_native` + masquage Dock automatique (point d'entrée GUI standard) |
+| `run_native` | `eframe::run_native` + masquage Dock (fenêtres visibles au lancement) |
 | `apply_launcher_hide_dock!` | Compatibilité — préférer `run_native` |
 | `banner::draw_feed_banner` | Bandeau réseau 2 lignes (titre, métriques, stats WS, bouton) |
 | `banner::draw_secondary_banner` | Bandeau secondaire (carnets, API absente, connectivité) |
