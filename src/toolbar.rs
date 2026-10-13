@@ -5,9 +5,9 @@ use eframe::egui::{self, FontId, RichText, Stroke};
 use crate::config_window::{config_manager_toolbar_button, TOOLBAR_CONTROL_HEIGHT};
 use crate::TEXT_SIZES;
 
-/// Hauteur max du panneau toolbar (wrap 2–3 lignes). Sans ça, les `Separator` verticaux
-/// prennent toute la hauteur dispo et le panneau « mange » la fenêtre (régression wrap layout).
-const TOOLBAR_PANEL_MAX_HEIGHT: f32 = 52.0;
+/// Hauteur max du panneau toolbar (wrap ~2 lignes status + onglets).
+/// Au-delà, egui réserve mal la hauteur → bande noire (viewport) sous la toolbar.
+const TOOLBAR_PANEL_MAX_HEIGHT: f32 = 72.0;
 
 /// Séparateur vertical compact — ne pas utiliser `ui.separator()` dans la toolbar horizontale.
 pub fn toolbar_separator(ui: &mut egui::Ui) {
@@ -46,7 +46,8 @@ pub fn show_app_toolbar<R>(
                 })
                 .inner,
             );
-            crate::egui_theme::fill_top_panel_remainder(ui);
+            // Pas de fill_top_panel_remainder ici : avec max_height, available_height peut
+            // couvrir toute la fenêtre → bande grise/blanche géante sous la toolbar.
         });
     out.expect("toolbar panel")
 }

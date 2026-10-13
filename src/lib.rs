@@ -8,10 +8,12 @@ pub mod issues;
 pub mod launcher;
 pub mod order_grid;
 pub mod orders_table;
+pub mod stack_panel;
 pub mod toolbar;
 
 pub mod widgets;
 
+pub use stack_panel::{show_stack_aux_top_panel, show_stack_strip_panel};
 pub use toolbar::{
     show_app_toolbar, toolbar_font, toolbar_readonly_chip, toolbar_row_caption, toolbar_row_status,
     toolbar_separator,
