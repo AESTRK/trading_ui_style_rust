@@ -121,6 +121,12 @@ pub fn issue_panel_exact_height(visible_strip_count: u8) -> f32 {
     n * issue_banner_strip_outer_height() + (n - 1.0).max(0.0) * 2.0
 }
 
+/// Hauteur panneau pour un seul `draw_feed_banner` avec métriques (2 lignes dans le bandeau bleu).
+pub fn feed_status_panel_exact_height() -> f32 {
+    let inner = egui::Margin::symmetric(10, 5).sum().y;
+    inner + ISSUE_BANNER_ROW_HEIGHT + 4.0 + ISSUE_BANNER_ROW_HEIGHT
+}
+
 fn clamp_issue_strip_ui(ui: &mut egui::Ui) {
     ui.set_min_height(ISSUE_BANNER_ROW_HEIGHT);
     ui.set_max_height(ISSUE_BANNER_ROW_HEIGHT);

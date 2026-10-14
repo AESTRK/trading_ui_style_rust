@@ -131,6 +131,19 @@ pub fn fill_top_panel_remainder(ui: &mut egui::Ui) {
     ui.painter().rect_filled(rect, 0.0, top_stack_fill(ui.ctx()));
 }
 
+/// Comble l’espace restant **dans** le panneau top (min_rect → max_rect), sans utiliser `available_height`
+/// (qui peut couvrir toute la fenêtre → bande géante si mal utilisé).
+pub fn fill_top_stack_remainder(ui: &mut egui::Ui) {
+    let max = ui.max_rect();
+    let used_bottom = ui.min_rect().bottom();
+    let h = max.bottom() - used_bottom;
+    if h < 0.5 {
+        return;
+    }
+    let rect = egui::Rect::from_min_max(egui::pos2(max.left(), used_bottom), max.right_bottom());
+    ui.painter().rect_filled(rect, 0.0, top_stack_fill(ui.ctx()));
+}
+
 /// Cadre panneau top (toolbar, bandeaux) — sans marge egui par défaut ni séparateur.
 pub fn stack_top_panel_frame(ctx: &egui::Context) -> egui::Frame {
     let fill = top_stack_fill(ctx);
