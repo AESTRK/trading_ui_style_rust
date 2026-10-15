@@ -1,13 +1,44 @@
 //! Construction de lignes grille partagée pour `orders_rust`.
 
 use egui::Color32;
-use trading_models_rust::{display_time_in_force, fmt_num, ExecutedOrder, OpenOrder};
+use trading_models_rust::{
+    display_time_in_force, fmt_num, fmt_quote_notional, ExecutedOrder, OpenOrder,
+};
 
 use crate::orders_table::{OrderGridCells, OrderGridRow, ORDER_TABLE_COLUMNS};
 
 /// Colonne à formater : visible à l'écran ou colonne de tri active.
 pub fn column_needed(visible: &[&str], sort_column: &str, key: &str) -> bool {
     visible.iter().any(|c| *c == key) || sort_column == key
+}
+
+fn open_order_quote_amt(order: &OpenOrder) -> f64 {
+    if order.cum_quote_qty > 0.0 {
+        return order.cum_quote_qty;
+    }
+    let px = order.limit_price.max(order.display_price());
+    let qty = if order.executed_qty > 0.0 {
+        order.executed_qty
+    } else {
+        order.orig_qty
+    };
+    if px > 0.0 && qty > 0.0 {
+        qty * px
+    } else {
+        0.0
+    }
+}
+
+fn executed_order_quote_amt(order: &ExecutedOrder) -> f64 {
+    if order.cum_quote_qty > 0.0 {
+        return order.cum_quote_qty;
+    }
+    let px = order.display_price();
+    if px > 0.0 && order.executed_qty > 0.0 {
+        order.executed_qty * px
+    } else {
+        0.0
+    }
 }
 
 pub fn open_order_grid_row(
@@ -78,6 +109,10 @@ pub fn open_order_grid_row_for_columns(
     if column_needed(visible, sort_column, "exec_qty") {
         cells.exec_qty = fmt_num(order.executed_qty);
     }
+    let quote_amt = open_order_quote_amt(order);
+    if column_needed(visible, sort_column, "quote_amt") {
+        cells.quote_amt = fmt_quote_montant(&order.symbol, quote_amt);
+    }
     if column_needed(visible, sort_column, "orig_qty") {
         cells.orig_qty = fmt_num(order.orig_qty);
     }
@@ -98,6 +133,7 @@ pub fn open_order_grid_row_for_columns(
         limit_px: order.limit_price,
         avg_px: order.display_price(),
         exec_qty: order.executed_qty,
+        quote_amt,
         orig_qty: order.orig_qty,
         rem_qty: rem,
         stop_px: order.stop_price,
@@ -175,6 +211,10 @@ pub fn executed_order_grid_row_for_columns(
     if column_needed(visible, sort_column, "exec_qty") {
         cells.exec_qty = fmt_num(order.executed_qty);
     }
+    let quote_amt = executed_order_quote_amt(order);
+    if column_needed(visible, sort_column, "quote_amt") {
+        cells.quote_amt = fmt_quote_montant(&order.symbol, quote_amt);
+    }
     if column_needed(visible, sort_column, "orig_qty") {
         cells.orig_qty = fmt_num(order.orig_qty);
     }
@@ -195,6 +235,7 @@ pub fn executed_order_grid_row_for_columns(
         limit_px: order.limit_price,
         avg_px: order.display_price(),
         exec_qty: order.executed_qty,
+        quote_amt,
         orig_qty: order.orig_qty,
         rem_qty: rem,
         stop_px: order.stop_price,
@@ -207,6 +248,14 @@ pub fn executed_order_grid_row_for_columns(
 fn fmt_num_or_dash(v: f64) -> String {
     if v > 0.0 {
         fmt_num(v)
+    } else {
+        "-".into()
+    }
+}
+
+fn fmt_quote_montant(symbol: &str, v: f64) -> String {
+    if v > 0.0 {
+        fmt_quote_notional(symbol, v)
     } else {
         "-".into()
     }
