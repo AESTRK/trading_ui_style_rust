@@ -111,7 +111,7 @@ pub fn executed_order_grid_row(
     order: &ExecutedOrder,
     row_color: Color32,
     cur_px: Option<f64>,
-    min_sell_px: Option<f64>,
+    min_sell_label: Option<String>,
 ) -> OrderGridRow {
     executed_order_grid_row_for_columns(
         order,
@@ -119,7 +119,7 @@ pub fn executed_order_grid_row(
         ORDER_TABLE_COLUMNS,
         "updated",
         cur_px,
-        min_sell_px,
+        min_sell_label,
     )
 }
 
@@ -129,10 +129,9 @@ pub fn executed_order_grid_row_for_columns(
     visible: &[&str],
     sort_column: &str,
     cur_px: Option<f64>,
-    min_sell_px: Option<f64>,
+    min_sell_label: Option<String>,
 ) -> OrderGridRow {
     let rem = (order.orig_qty - order.executed_qty).max(0.0);
-    let min_sell = min_sell_px.or((order.min_sell_px > 0.0).then_some(order.min_sell_px));
     let mut cells = OrderGridCells::empty();
     if column_needed(visible, sort_column, "updated") {
         cells.updated = order.updated_local();
@@ -171,9 +170,7 @@ pub fn executed_order_grid_row_for_columns(
         cells.avg_px = fmt_num(order.display_price());
     }
     if column_needed(visible, sort_column, "min_sell_px") {
-        cells.min_sell_px = min_sell
-            .map(fmt_num)
-            .unwrap_or_else(|| "-".into());
+        cells.min_sell_px = min_sell_label.unwrap_or_else(|| "-".into());
     }
     if column_needed(visible, sort_column, "exec_qty") {
         cells.exec_qty = fmt_num(order.executed_qty);

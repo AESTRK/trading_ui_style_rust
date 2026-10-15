@@ -199,7 +199,7 @@ pub fn show_sortable_table_columns(
     sort: &mut OrderTableSort,
     visible_columns: &[&str],
 ) {
-    show_sortable_table_columns_with_menu(ui, table_id, rows, sort, visible_columns, None::<fn(usize, &OrderGridRow)>);
+    show_sortable_table_columns_with_menu(ui, table_id, rows, sort, visible_columns, None::<fn(&mut Ui, &OrderGridRow)>);
 }
 
 pub fn show_sortable_table_columns_with_menu(
@@ -208,7 +208,7 @@ pub fn show_sortable_table_columns_with_menu(
     rows: &[OrderGridRow],
     sort: &mut OrderTableSort,
     visible_columns: &[&str],
-    mut on_row_context_menu: Option<impl FnMut(usize, &OrderGridRow)>,
+    mut on_row_context_menu: Option<impl FnMut(&mut Ui, &OrderGridRow)>,
 ) {
     if visible_columns.is_empty() {
         return;
@@ -262,10 +262,7 @@ pub fn show_sortable_table_columns_with_menu(
                 if let Some(handler) = on_row_context_menu.as_mut() {
                     let row = &rows[index];
                     response.context_menu(|ui| {
-                        if ui.button("Détail fees / MIN_SELL…").clicked() {
-                            handler(index, row);
-                            ui.close_menu();
-                        }
+                        handler(ui, row);
                     });
                 }
             }
