@@ -130,6 +130,43 @@ pub fn show_sticky_header_table<R>(
     (header_event, body_out.expect("sticky table body"))
 }
 
+/// Comme [`show_sticky_header_table`], mais le corps utilise `ScrollArea::show_rows` (listes longues).
+pub fn show_sticky_header_table_rows<R>(
+    ui: &mut Ui,
+    table_id: Id,
+    row_height: f32,
+    row_count: usize,
+    draw_header: impl FnOnce(&mut Ui) -> TableHeaderEvent,
+    mut draw_rows: impl FnMut(&mut Ui, std::ops::Range<usize>) -> R,
+) -> (TableHeaderEvent, R) {
+    let mut header_event = TableHeaderEvent::default();
+    let mut body_out: Option<R> = None;
+    let outer_height = ui.available_height();
+    ScrollArea::horizontal()
+        .id_salt(table_id.with("h_scroll"))
+        .auto_shrink([false, false])
+        .drag_to_scroll(false)
+        .max_height(outer_height)
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                header_event = with_zero_row_spacing(ui, draw_header);
+                let body_height = ui.available_height().max(row_height);
+                body_out = Some(
+                    ScrollArea::vertical()
+                        .id_salt(table_id.with("v_scroll"))
+                        .auto_shrink([false, false])
+                        .drag_to_scroll(true)
+                        .max_height(body_height)
+                        .show_rows(ui, row_height, row_count, |ui, row_range| {
+                            with_zero_row_spacing(ui, |ui| draw_rows(ui, row_range))
+                        })
+                        .inner,
+                );
+            });
+        });
+    (header_event, body_out.expect("sticky table rows body"))
+}
+
 /// En-tête triable : clic sur une colonne pour trier ; reclic inverse le sens (flèche).
 pub fn draw_header_row(
     ui: &mut Ui,
