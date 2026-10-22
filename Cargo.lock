@@ -185,6 +185,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "chrono-tz",
+ "iana-time-zone",
  "serde",
  "serde_json",
  "tokio",
@@ -2225,6 +2226,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tracing",
+ "trading_models_rust",
  "zmq",
 ]
 
@@ -4039,6 +4041,7 @@ name = "trading_models_rust"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "chrono-tz",
  "serde",
  "serde_json",
 ]
