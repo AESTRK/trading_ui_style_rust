@@ -1,11 +1,11 @@
-//! Format qty/prix grille ordres — Statics ou fallback legacy.
-
-#![allow(deprecated)]
+//! Format qty/prix grille ordres — Statics (`None` → « — », pas d’heuristique legacy).
 
 use reference_client_rust::{
     format_price_for_pair, format_qty_for_pair, StaticsFormatCache,
 };
-use trading_models_rust::{fmt_num, fmt_quote_notional, VenueId};
+use trading_models_rust::VenueId;
+
+const MISSING: &str = "—";
 
 pub fn grid_qty(
     statics: Option<&StaticsFormatCache>,
@@ -13,10 +13,9 @@ pub fn grid_qty(
     symbol: &str,
     value: f64,
 ) -> String {
-    if let Some(cache) = statics {
-        return format_qty_for_pair(cache, venue, symbol, value);
-    }
-    fmt_num(value)
+    statics
+        .map(|cache| format_qty_for_pair(cache, venue, symbol, value))
+        .unwrap_or_else(|| MISSING.into())
 }
 
 pub fn grid_price(
@@ -25,10 +24,9 @@ pub fn grid_price(
     symbol: &str,
     value: f64,
 ) -> String {
-    if let Some(cache) = statics {
-        return format_price_for_pair(cache, venue, symbol, value);
-    }
-    fmt_num(value)
+    statics
+        .map(|cache| format_price_for_pair(cache, venue, symbol, value))
+        .unwrap_or_else(|| MISSING.into())
 }
 
 pub fn grid_price_or_dash(
@@ -53,10 +51,9 @@ pub fn grid_quote_notional(
     if value <= 0.0 {
         return "-".into();
     }
-    if let Some(cache) = statics {
-        return format_price_for_pair(cache, venue, symbol, value);
-    }
-    fmt_quote_notional(symbol, value)
+    statics
+        .map(|cache| format_price_for_pair(cache, venue, symbol, value))
+        .unwrap_or_else(|| MISSING.into())
 }
 
 pub fn grid_cur_px(
