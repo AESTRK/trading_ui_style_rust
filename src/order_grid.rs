@@ -1,10 +1,12 @@
 //! Construction de lignes grille partagée pour `orders_rust`.
 
 use egui::Color32;
-use trading_models_rust::{
-    display_time_in_force, fmt_num, fmt_quote_notional, ExecutedOrder, OpenOrder,
-};
+use reference_client_rust::StaticsFormatCache;
+use trading_models_rust::{display_time_in_force, ExecutedOrder, OpenOrder};
 
+use crate::order_amount_format::{
+    grid_cur_px, grid_price, grid_price_or_dash, grid_qty, grid_quote_notional,
+};
 use crate::orders_table::{OrderGridCells, OrderGridRow, ORDER_TABLE_COLUMNS};
 
 /// Colonne à formater : visible à l'écran ou colonne de tri active.
@@ -54,6 +56,7 @@ pub fn open_order_grid_row(
         "updated",
         cur_px,
         min_sell_px,
+        None,
     )
 }
 
@@ -64,6 +67,7 @@ pub fn open_order_grid_row_for_columns(
     sort_column: &str,
     cur_px: Option<f64>,
     min_sell_px: Option<f64>,
+    statics: Option<&StaticsFormatCache>,
 ) -> OrderGridRow {
     let rem = order.remaining_qty();
     let mut cells = OrderGridCells::empty();
@@ -91,33 +95,37 @@ pub fn open_order_grid_row_for_columns(
     if column_needed(visible, sort_column, "status") {
         cells.status = order.status.as_str().to_string();
     }
+    let venue = order.venue;
+    let symbol = order.symbol.as_str();
     if column_needed(visible, sort_column, "limit_px") {
-        cells.limit_px = fmt_num(order.limit_price);
+        cells.limit_px = grid_price(statics, venue, symbol, order.limit_price);
     }
     if column_needed(visible, sort_column, "stop_px") {
-        cells.stop_px = fmt_num_or_dash(order.stop_price);
+        cells.stop_px = grid_price_or_dash(statics, venue, symbol, order.stop_price);
     }
     if column_needed(visible, sort_column, "cur_px") {
-        cells.cur_px = cur_px.map(fmt_num).unwrap_or_else(|| "-".into());
+        cells.cur_px = grid_cur_px(statics, venue, symbol, cur_px);
     }
     if column_needed(visible, sort_column, "avg_px") {
-        cells.avg_px = fmt_num(order.display_price());
+        cells.avg_px = grid_price(statics, venue, symbol, order.display_price());
     }
     if column_needed(visible, sort_column, "min_sell_px") {
-        cells.min_sell_px = min_sell_px.map(fmt_num).unwrap_or_else(|| "-".into());
+        cells.min_sell_px = min_sell_px
+            .map(|px| grid_price(statics, venue, symbol, px))
+            .unwrap_or_else(|| "-".into());
     }
     if column_needed(visible, sort_column, "exec_qty") {
-        cells.exec_qty = fmt_num(order.executed_qty);
+        cells.exec_qty = grid_qty(statics, venue, symbol, order.executed_qty);
     }
     let quote_amt = open_order_quote_amt(order);
     if column_needed(visible, sort_column, "quote_amt") {
-        cells.quote_amt = fmt_quote_montant(&order.symbol, quote_amt);
+        cells.quote_amt = grid_quote_notional(statics, venue, symbol, quote_amt);
     }
     if column_needed(visible, sort_column, "orig_qty") {
-        cells.orig_qty = fmt_num(order.orig_qty);
+        cells.orig_qty = grid_qty(statics, venue, symbol, order.orig_qty);
     }
     if column_needed(visible, sort_column, "rem_qty") {
-        cells.rem_qty = fmt_num(rem);
+        cells.rem_qty = grid_qty(statics, venue, symbol, rem);
     }
     if column_needed(visible, sort_column, "tif") {
         cells.tif = display_time_in_force(&order.time_in_force);
@@ -156,6 +164,7 @@ pub fn executed_order_grid_row(
         "updated",
         cur_px,
         min_sell_label,
+        None,
     )
 }
 
@@ -166,6 +175,7 @@ pub fn executed_order_grid_row_for_columns(
     sort_column: &str,
     cur_px: Option<f64>,
     min_sell_label: Option<String>,
+    statics: Option<&StaticsFormatCache>,
 ) -> OrderGridRow {
     let rem = (order.orig_qty - order.executed_qty).max(0.0);
     let mut cells = OrderGridCells::empty();
@@ -193,30 +203,32 @@ pub fn executed_order_grid_row_for_columns(
     if column_needed(visible, sort_column, "status") {
         cells.status = order.status.as_str().to_string();
     }
+    let venue = order.venue;
+    let symbol = order.symbol.as_str();
     if column_needed(visible, sort_column, "limit_px") {
-        cells.limit_px = fmt_num(order.limit_price);
+        cells.limit_px = grid_price(statics, venue, symbol, order.limit_price);
     }
     if column_needed(visible, sort_column, "stop_px") {
-        cells.stop_px = fmt_num_or_dash(order.stop_price);
+        cells.stop_px = grid_price_or_dash(statics, venue, symbol, order.stop_price);
     }
     if column_needed(visible, sort_column, "cur_px") {
-        cells.cur_px = cur_px.map(fmt_num).unwrap_or_else(|| "-".into());
+        cells.cur_px = grid_cur_px(statics, venue, symbol, cur_px);
     }
     if column_needed(visible, sort_column, "avg_px") {
-        cells.avg_px = fmt_num(order.display_price());
+        cells.avg_px = grid_price(statics, venue, symbol, order.display_price());
     }
     if column_needed(visible, sort_column, "min_sell_px") {
         cells.min_sell_px = min_sell_label.unwrap_or_else(|| "-".into());
     }
     if column_needed(visible, sort_column, "exec_qty") {
-        cells.exec_qty = fmt_num(order.executed_qty);
+        cells.exec_qty = grid_qty(statics, venue, symbol, order.executed_qty);
     }
     let quote_amt = executed_order_quote_amt(order);
     if column_needed(visible, sort_column, "quote_amt") {
-        cells.quote_amt = fmt_quote_montant(&order.symbol, quote_amt);
+        cells.quote_amt = grid_quote_notional(statics, venue, symbol, quote_amt);
     }
     if column_needed(visible, sort_column, "orig_qty") {
-        cells.orig_qty = fmt_num(order.orig_qty);
+        cells.orig_qty = grid_qty(statics, venue, symbol, order.orig_qty);
     }
     if column_needed(visible, sort_column, "rem_qty") {
         cells.rem_qty = "-".into();
@@ -242,21 +254,5 @@ pub fn executed_order_grid_row_for_columns(
         cur_px: cur_px.unwrap_or(0.0),
         cells,
         color: row_color,
-    }
-}
-
-fn fmt_num_or_dash(v: f64) -> String {
-    if v > 0.0 {
-        fmt_num(v)
-    } else {
-        "-".into()
-    }
-}
-
-fn fmt_quote_montant(symbol: &str, v: f64) -> String {
-    if v > 0.0 {
-        fmt_quote_notional(symbol, v)
-    } else {
-        "-".into()
     }
 }

@@ -6,6 +6,7 @@ pub mod data_table;
 pub mod egui_theme;
 pub mod issues;
 pub mod launcher;
+pub mod order_amount_format;
 pub mod order_grid;
 pub mod orders_table;
 pub mod stack_panel;
