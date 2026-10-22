@@ -52,7 +52,7 @@ pub fn show_issue_panel(
                 warnings,
                 reg,
             );
-            crate::egui_theme::fill_top_panel_remainder(ui);
+            crate::egui_theme::fill_top_stack_remainder(ui);
         });
         crate::banner::request_repaint_for_issue_blink(ctx);
     });

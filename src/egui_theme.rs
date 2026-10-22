@@ -91,6 +91,11 @@ pub fn visuals_from_palette(mode: ThemeMode, trading: TradingPalette) -> egui::V
     visuals
 }
 
+/// Couleur OpenGL/WGPU de fond viewport — alignée sur la palette stack (pas le défaut eframe ~noir).
+pub fn stack_clear_color(visuals: &egui::Visuals) -> [f32; 4] {
+    visuals.window_fill().to_normalized_gamma_f32()
+}
+
 pub fn apply_system_visuals(ctx: &egui::Context) {
     let mode = theme_mode(ctx);
     let encoded = if mode == ThemeMode::Dark {
@@ -117,7 +122,8 @@ pub fn top_stack_fill(ctx: &egui::Context) -> egui::Color32 {
 /// Peint tout le panneau top (évite une bande noire si un `add_space` laisse le viewport visible).
 pub fn paint_top_stack_panel_bg(ui: &mut egui::Ui) {
     let fill = top_stack_fill(ui.ctx());
-    ui.painter().rect_filled(ui.max_rect(), 0.0, fill);
+    let rect = ui.clip_rect().intersect(ui.max_rect());
+    ui.painter().rect_filled(rect, 0.0, fill);
 }
 
 /// Comble un `TopBottomPanel` à hauteur fixe — sinon egui réserve moins que `exact_height` et le fond OS (noir) apparaît.

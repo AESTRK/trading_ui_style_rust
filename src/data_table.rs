@@ -110,7 +110,7 @@ pub fn show_sticky_header_table<R>(
     ScrollArea::horizontal()
         .id_salt(table_id.with("h_scroll"))
         .auto_shrink([false, true])
-        .drag_to_scroll(false)
+        .drag_to_scroll(true)
         .max_height(outer_height)
         .show(ui, |ui| {
             ui.vertical(|ui| {
@@ -238,7 +238,7 @@ pub fn draw_selectable_row(
     mut draw_cell: impl FnMut(&Ui, &str, Rect, Color32),
 ) -> Response {
     let spacing = column_spacing(ui);
-    let row_w = table_content_width(columns, column_width, ui).max(ui.available_width());
+    let row_w = table_content_width(columns, column_width, ui);
     let (rect, _) = ui.allocate_exact_size(Vec2::new(row_w, row_height), Sense::hover());
     if selected {
         ui.painter()

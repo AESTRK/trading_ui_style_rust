@@ -2,6 +2,38 @@
 //!
 //! Le launcher Xcode définit `ALPHA_LAGOON_HIDE_DOCK=1` pour toute la stack.
 
+use eframe::{App, Frame};
+
+/// Fond viewport + thème avant le premier paint (toutes les apps `run_native`).
+struct StackClearColorApp<'a>(Box<dyn App + 'a>);
+
+impl<'a> App for StackClearColorApp<'a> {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+        crate::egui_theme::apply_system_visuals(ctx);
+        self.0.update(ctx, frame);
+    }
+
+    fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
+        crate::egui_theme::stack_clear_color(visuals)
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.0.save(storage);
+    }
+
+    fn auto_save_interval(&self) -> std::time::Duration {
+        self.0.auto_save_interval()
+    }
+
+    fn persist_egui_memory(&self) -> bool {
+        self.0.persist_egui_memory()
+    }
+
+    fn on_exit(&mut self, gl: Option<&eframe::glow::Context>) {
+        self.0.on_exit(gl);
+    }
+}
+
 /// `true` si le launcher a demandé de masquer l'icône Dock.
 pub fn hide_dock_requested() -> bool {
     std::env::var("ALPHA_LAGOON_HIDE_DOCK")
@@ -42,7 +74,8 @@ pub fn run_native(
     app_runtime_rust::ensure_config_persist_relay();
     let wrapped: eframe::AppCreator<'_> = Box::new(move |cc| {
         crate::egui_theme::apply_system_visuals(&cc.egui_ctx);
-        creator(cc)
+        let app = creator(cc)?;
+        Ok(Box::new(StackClearColorApp(app)) as Box<dyn App>)
     });
     eframe::run_native(app_name, prepare_native_options(options), wrapped)
 }

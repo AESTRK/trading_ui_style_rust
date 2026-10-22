@@ -129,7 +129,7 @@ pub fn show_resolved_banner(
                 detail,
                 Some((reg, app_display_name)),
             );
-            crate::egui_theme::fill_top_panel_remainder(ui);
+            crate::egui_theme::fill_top_stack_remainder(ui);
         });
     });
 }
